@@ -1,0 +1,51 @@
+initialize() {
+	initializeSLiMModelType("nonWF"); // Non Wright-Fisher model
+	
+	defineConstant("K0", 5000);	// initial carrying capacity
+	
+	defineConstant("el", 0.7);	// probablility to advabce from larvae to subadult
+	
+	defineConstant("es", 0.7);	// probablility to advabce from subadult to adult
+	
+	defineConstant("J",8); // number of linked loci
+	
+	defineContant("u", 5e-5); // mutation rate
+	
+	defineConstant("c", 0.02); // recombination probability among adults and subadults
+	
+	defineConstant("al", 0.25);
+	
+	defineConstant("bl", 0.1);
+	
+	if (!exists("as"))
+	{defineConstant("as", 0.1);}
+	
+	if (!exists("bs"))
+	{defineConstant("bs", 0.2);}
+	
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	m1.convertToSubstitution = F;
+	
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, J);
+	initializeMutationRate(u);
+	initializeRecombinationRate(c);
+}
+
+// each individual reproduces itself once
+reproduction() {
+	subpop.addCrossed(individual, subpop.sampleIndividuals(1));
+}
+
+// create an initial population of 10 individuals
+1 early() {
+	sim.addSubpop("p1", 10);
+}
+
+// provide density-dependent selection
+early() {
+	p1.fitnessScaling = K / p1.individualCount;
+}
+
+// output all fixed mutations at end
+2000 late() { sim.outputFixedMutations(); }
