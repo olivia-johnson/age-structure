@@ -9,7 +9,7 @@ initialize() {
 	
 	defineConstant("J",8); // number of linked loci
 	
-	defineContant("u", 5e-5); // mutation rate
+	defineConstant("u", 5e-5); // mutation rate
 	
 	defineConstant("c", 0.02); // recombination probability among adults and subadults
 	
@@ -37,9 +37,17 @@ reproduction() {
 	subpop.addCrossed(individual, subpop.sampleIndividuals(1));
 }
 
+early(){
+	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 each generation
+	defineGlobal("Kt",integer(round(K0*exp((al*Z[0])+(bl*Z[1]))))); // define Kt
+}
+
 // create an initial population of 10 individuals
 1 early() {
-	sim.addSubpop("p1", 10);
+	sim.addSubpop("larvae", Kt);
+	sim.addSubpop("subadult", el*Kt);
+	sim.addSubpop("adult", el*es*Kt);
+
 }
 
 // provide density-dependent selection
