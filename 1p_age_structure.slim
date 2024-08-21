@@ -23,6 +23,7 @@ initialize() {
 	if (!exists("bs"))
 	{defineConstant("bs", 0.2);}
 	
+	defineConstant("age_transitions", c(el, es, 1.0));
 	
 	initializeMutationType("m1", 0.5, "f", 0.0);
 	m1.convertToSubstitution = F;
@@ -38,32 +39,52 @@ reproduction() {
 	subpop.addCrossed(individual, subpop.sampleIndividuals(1));
 }
 
-1 early() { // draw values for adult and subadult initial populations
-	defineGlobal("Zt_2", rnorm(2)); // define Z1 and Z2 generation t-2
-	defineGlobal("Kt2",K0*exp((al*Zt_2[0])+(bl*Zt_2[1]))); // define Kt-2
-	defineGlobal("Zt_1", rnorm(2)); // define Z1 and Z2 generation t-1
-	defineGlobal("Kt1", K0*exp((al*Zt_1[0])+(bl*Zt_1[1]))); // define Kt-1
+2: early() {
 	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
+	
 	defineGlobal("Kt", K0*exp((al*Z[0])+(bl*Z[1]))); // define Kt
 	
-	//draw in subpopulations as different age groups 	
-	sim.addSubpop("p1", asInteger(round(Kt)), haploid=T); // larve
-	sim.addSubpop("p2", asInteger(round(el*Kt1)), haploid=T); // sub adult
-	sim.addSubpop("p3", asInteger(round(el*es*Kt2)), haploid=T); // adult
+	for (i in c(0,1,2))
+	{
+		p1.individuals[p1.individuals.age==i].color=colours[i];
+	
+	}}
+
+1 early(){//draw in single subpopulation
+	
+	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
+	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt-2
+	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt-1
+	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
+	defineGlobal("N", asInteger(K0+(K0*el)+(K0*el*es)));
+	defineGlobal("colours", c("pink", "yellow", "blue")); // define Kt
+	
+	sim.addSubpop("p1", N, haploid=T);
+	
+	ages=c(repEach(0, K0), repEach(1, asInteger(K0*el)), repEach(2,asInteger(K0*el*es)));
+	
+	rAges=sample(ages, N);
+	
+	p1.individuals.age=rAges;
+	
+	for (i in c(0,1,2))
+	{
+		p1.individuals[p1.individuals.age==i].color=colours[i];
+	
+	}
+
 }
 
-2: early(){ // draw values and calculate carrying capacity for current population
-	defineGlobal("Kt2",Kt1); // reassign Kt-2
-	defineGlobal("Kt1",Kt); // reassign Kt-1
-	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 each generation
-	defineGlobal("Kt",asInteger(round(K0*exp((al*Z[0])+(bl*Z[1]))))); // define Kt
-}
 
-// provide density-dependent selection
+ // provide density-dependent selection
 early() {
-	p1.fitnessScaling = Kt / p1.individualCount;
-	p2.fitnessScaling = el*Kt1 / p2.individualCount;
-	p3.fitnessScaling = el*es*Kt2 / p3.individualCount;
+	// life table based individual mortality
+	inds = p1.individuals;
+	ages = inds.age;
+	survival = age_transitions[ages];
+	inds.fitnessScaling = survival;
+	// density-dependence, factoring in individual mortality
+//	p1.fitnessScaling = K / (p1.individualCount * mean(survival));
 }
 
 // output all fixed mutations at end
