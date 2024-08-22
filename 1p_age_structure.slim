@@ -23,7 +23,7 @@ initialize() {
 	if (!exists("bs"))
 	{defineConstant("bs", 0.2);}
 	
-	defineConstant("age_transitions", c(el, es, 1.0));
+	defineConstant("age_transitions", c(1.0,el, es, 0.0));
 	
 	initializeMutationType("m1", 0.5, "f", 0.0);
 	m1.convertToSubstitution = F;
@@ -36,15 +36,21 @@ initialize() {
 
 // each individual reproduces itself once
 reproduction() {
-	subpop.addCrossed(individual, subpop.sampleIndividuals(1));
+	
+	for (x in c(2,3)){
+		i_age=individual.age;
+		mate = subpop.sampleIndividuals(1, minAge=i_age, maxAge=i_age);
+		subpop.addCrossed(individual, mate);
+	}
 }
 
 2: early() {
 	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
+	defineGlobal("Kt2", asInteger(el*es*Kt1)); // define Kt
+	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt
+	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
 	
-	defineGlobal("Kt", K0*exp((al*Z[0])+(bl*Z[1]))); // define Kt
-	
-	for (i in c(0,1,2))
+	for (i in c(1,2,3,4))
 	{
 		p1.individuals[p1.individuals.age==i].color=colours[i];
 	
@@ -57,17 +63,17 @@ reproduction() {
 	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt-1
 	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
 	defineGlobal("N", asInteger(K0+(K0*el)+(K0*el*es)));
-	defineGlobal("colours", c("pink", "yellow", "blue")); // define Kt
+	defineGlobal("colours", c(0,"pink", "yellow", "blue", "black")); // define Kt
 	
 	sim.addSubpop("p1", N, haploid=T);
 	
-	ages=c(repEach(0, K0), repEach(1, asInteger(K0*el)), repEach(2,asInteger(K0*el*es)));
+	ages=c(repEach(1, K0), repEach(2, asInteger(K0*el)), repEach(3,asInteger(K0*el*es)));
 	
 	rAges=sample(ages, N);
 	
 	p1.individuals.age=rAges;
 	
-	for (i in c(0,1,2))
+	for (i in c(1,2,3))
 	{
 		p1.individuals[p1.individuals.age==i].color=colours[i];
 	
@@ -76,15 +82,16 @@ reproduction() {
 }
 
 
- // provide density-dependent selection
+// provide density-dependent selection
 early() {
-	// life table based individual mortality
-	inds = p1.individuals;
-	ages = inds.age;
-	survival = age_transitions[ages];
-	inds.fitnessScaling = survival;
-	// density-dependence, factoring in individual mortality
-//	p1.fitnessScaling = K / (p1.individualCount * mean(survival));
+	defineGlobal("K", c(0, Kt, Kt1, Kt2,0));
+	
+	for (i in 1:length(unique(p1.individuals.age)))
+	{
+		inds=p1.individuals[p1.individuals.age==i];
+		inds.fitnessScaling = K[i] / (length(inds)*age_transitions[i]);
+	
+	}
 }
 
 // output all fixed mutations at end
