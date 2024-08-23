@@ -1,4 +1,6 @@
 initialize() {
+	defineConstant("outpath", "~/Documents/yuseob/");
+	
 	initializeSLiMModelType("nonWF"); // Non Wright-Fisher model
 	
 	defineConstant("K0", 5000);	// initial carrying capacity
@@ -23,13 +25,14 @@ initialize() {
 	if (!exists("bs"))
 	{defineConstant("bs", 0.2);}
 	
-	defineConstant("age_transitions", c(1.0,el, es, 0.0));
+	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0));
 	
 	initializeMutationType("m1", 0.5, "f", 0.0);
 	m1.convertToSubstitution = F;
+	mutationStackPolicy="l";
 	
 	initializeGenomicElementType("g1", m1, 1.0);
-	initializeGenomicElement(g1, 0, J);
+	initializeGenomicElement(g1, 0, J-1);
 	initializeMutationRate(u);
 	initializeRecombinationRate(c);
 }
@@ -37,35 +40,24 @@ initialize() {
 // each individual reproduces itself once
 reproduction() {
 	
-	for (x in c(2,3)){
+	if (individual.age > 1 & individual.age < 4){
 		i_age=individual.age;
-		mate = subpop.sampleIndividuals(1, minAge=i_age, maxAge=i_age);
-		subpop.addCrossed(individual, mate);
-	}
+		mate = subpop.sampleIndividuals(1, minAge=i_age, maxAge =i_age);
+		subpop.addCrossed(individual, mate);}
+
 }
 
-2: early() {
-	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
-	defineGlobal("Kt2", asInteger(el*es*Kt1)); // define Kt
-	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt
-	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
-	
-	for (i in c(1,2,3,4))
-	{
-		p1.individuals[p1.individuals.age==i].color=colours[i];
-	
-	}}
-
-1 early(){//draw in single subpopulation
+1 first(){//draw in single subpopulation
+	defineGlobal("Z3j", rnorm(J)); // define Z1 and Z2 current generation
 	
 	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
 	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt-2
 	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt-1
 	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
 	defineGlobal("N", asInteger(K0+(K0*el)+(K0*el*es)));
-	defineGlobal("colours", c(0,"pink", "yellow", "blue", "black")); // define Kt
+	defineGlobal("colours", c(0,"pink", "yellow", "blue", "black")); // define age colours
 	
-	sim.addSubpop("p1", N, haploid=T);
+	sim.addSubpop("p1", N);
 	
 	ages=c(repEach(1, K0), repEach(2, asInteger(K0*el)), repEach(3,asInteger(K0*el*es)));
 	
@@ -76,23 +68,80 @@ reproduction() {
 	for (i in c(1,2,3))
 	{
 		p1.individuals[p1.individuals.age==i].color=colours[i];
-	
 	}
-
+	header="Time,mut_id,mut_pos,af";
+	writeFile(paste0(outpath, "af_",as,"_",bs,".txt"), header,append=F);
 }
 
+// fitness effect
+fitnessEffect() {
+	gm=individual.genomes.mutations.position;
+	if (length(gm)>0){
+		gm1=individual.genome1.mutations.position;
+		gm2=individual.genome2.mutations.position;
+		if ((length(gm1)>0&length(gm2)==0)|(length(gm2)>0&length(gm1)==0)){
+			Sjt=1+Z3j[gm]*bs+(as*Z[0]);
+			wit=product(Sjt);
+			return wit;
+		
+		}else{
+			Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
+			wit1=product(Sjt1);
+			
+			Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
+			wit2=product(Sjt2);
+			return wit1+wit2	;}
+	}else{
+		return 1.0;
+	}
+}
+
+2: early() {
+	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
+	defineGlobal("Kt2", asInteger(el*es*Kt1)); // define Kt
+	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt
+	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
+	
+	if (size(sim.mutations)>0){
+		for (i in 1:size(sim.mutations)-1){
+			tab_line = paste(c(sim.cycle,sim.mutations[i].id,sim.mutations[i].position,sim.mutationFrequencies(p1)[i]), sep = ",");
+			writeFile(paste0(outpath, "af_",as,"_",bs,".txt"), tab_line, append = T);
+		} }
+	
+	
+	for (i in c(1,2,3))
+	{
+		p1.individuals[p1.individuals.age==i].color=colours[i];
+	
+	}
+	if (length(p1.individuals[p1.individuals.age>3])>0){
+		p1.individuals[p1.individuals.age>3].color="black";
+	}
+}
 
 // provide density-dependent selection
 early() {
-	defineGlobal("K", c(0, Kt, Kt1, Kt2,0));
 	
-	for (i in 1:length(unique(p1.individuals.age)))
+	defineGlobal("Z3j", rnorm(J)); // define Z1 and Z2 current generation
+	
+	
+	defineGlobal("K", c(0, Kt, Kt1, Kt2,0));
+	gerries=p1.individuals[p1.individuals.age>3];
+	sim.killIndividuals(gerries);
+	
+	
+	for (i in 1:3)
 	{
 		inds=p1.individuals[p1.individuals.age==i];
-		inds.fitnessScaling = K[i] / (length(inds)*age_transitions[i]);
-	
+		inds.fitnessScaling = K[i]/length(inds) ;
 	}
 }
 
+late(){
+	catn(paste("N by age 1=", length(p1.individuals[p1.individuals.age==1]), ", 2=", length(p1.individuals[p1.individuals.age==2]), ", 3=",length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));
+}
+
+
 // output all fixed mutations at end
-2000 late() { sim.outputFixedMutations(); }
+2000 late() { sim.outputFixedMutations();
+}
