@@ -3,7 +3,7 @@ initialize() {
 	
 	initializeSLiMModelType("nonWF"); // Non Wright-Fisher model
 	
-	defineConstant("K0", 1000);	// initial carrying capacity
+	defineConstant("K0", 5000);	// initial carrying capacity
 	
 	defineConstant("el", 0.7);	// probablility to advabce from larvae to subadult
 	
@@ -13,7 +13,7 @@ initialize() {
 	
 	defineConstant("u", 5e-5); // mutation rate
 	
-	defineConstant("c", 0.02); // recombination probability among adults and subadults
+	defineConstant("c", 0.02*(J-1)); // recombination probability among adults and subadults
 	
 	defineConstant("al", 0.25);
 	
@@ -107,11 +107,11 @@ fitnessEffect() {
 		
 		}else{
 			Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
-			wit1=product(Sjt1);
 			
 			Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
-			wit2=product(Sjt2);
-			return 1+wit1+wit2	;}
+			
+			wit=product(Sjt1)+product(Sjt2);
+			return 1+wit;}
 	}else{
 		return 1.0;
 	}
