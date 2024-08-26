@@ -13,7 +13,7 @@ initialize() {
 	
 	defineConstant("u", 5e-5); // mutation rate
 	
-	defineConstant("c", 0.02*(J-1)); // recombination probability among adults and subadults
+	defineConstant("c", 0.02); // recombination probability among adults and subadults
 	
 	defineConstant("al", 0.25);
 	
@@ -50,6 +50,7 @@ reproduction() {
 		subpop.addCrossed(individual, mate);}
 
 }
+
 
 mutation(m3) {
 	// if we already have an m2 mutation at the site, allow
@@ -96,25 +97,28 @@ mutation(m3) {
 
 // fitness effect
 fitnessEffect() {
-	gm=individual.genomes.mutationsOfType(m2).position;
-	if (length(gm)>0){
-		gm1=individual.genome1.mutationsOfType(m2).position;
-		gm2=individual.genome2.mutationsOfType(m2).position;
-		if ((length(gm1)>0&length(gm2)==0)|(length(gm2)>0&length(gm1)==0)){
-			Sjt=1+Z3j[gm]*bs+(as*Z[0]);
-			wit=product(Sjt);
-			return 1+wit;
-		
+	if (individual.age>1){
+		gm=individual.genomes.mutationsOfType(m2).position;
+		if (length(gm)>0){
+			gm1=individual.genome1.mutationsOfType(m2).position;
+			gm2=individual.genome2.mutationsOfType(m2).position;
+			if ((length(gm1)>0&length(gm2)==0)|(length(gm2)>0&length(gm1)==0)){
+				Sjt=1+Z3j[gm]*bs+(as*Z[0]);
+				wit=product(Sjt);
+				return 1+wit;
+			
+			}else{
+				Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
+				
+				Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
+				
+				wit=product(Sjt1)+product(Sjt2);
+				return 1+wit;}
 		}else{
-			Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
-			
-			Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
-			
-			wit=product(Sjt1)+product(Sjt2);
-			return 1+wit;}
-	}else{
-		return 1.0;
-	}
+			return 1.0;
+		}
+	} else{
+		return 1.0;}
 }
 
 2: early() {
@@ -184,5 +188,5 @@ late() {
 
 
 // output all fixed mutations at end
-20000 late() { 
+20000 late() {
 }
