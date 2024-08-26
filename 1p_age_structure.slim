@@ -3,7 +3,7 @@ initialize() {
 	
 	initializeSLiMModelType("nonWF"); // Non Wright-Fisher model
 	
-	defineConstant("K0", 5000);	// initial carrying capacity
+	defineConstant("K0", 1000);	// initial carrying capacity
 	
 	defineConstant("el", 0.7);	// probablility to advabce from larvae to subadult
 	
@@ -27,11 +27,15 @@ initialize() {
 	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0));
 	
-	initializeMutationType("m1", 0.5, "f", 0.0);
-	m1.convertToSubstitution = F;
-	mutationStackPolicy="l";
+	initializeMutationType("m2", 0.5, "f", 0.0); // A2 mutation
+	m2.convertToSubstitution = F;
+	m2.color = "cornflowerblue";
 	
-	initializeGenomicElementType("g1", m1, 1.0);
+	initializeMutationType("m3", 0.5, "f", 0.0); // Used for new mutations to enable backmutation
+	m3.convertToSubstitution = F;
+	m3.color = "red";
+	initializeGenomicElementType("g1", m3, 1.0);
+	
 	initializeGenomicElement(g1, 0, J-1);
 	initializeMutationRate(u);
 	initializeRecombinationRate(c);
@@ -47,6 +51,16 @@ reproduction() {
 
 }
 
+mutation(m3) {
+	// if we already have an m2 mutation at the site, allow
+	// the new m3 mutation; we will remove the stack below (A2 back to A1)
+	if (genome.containsMarkerMutation(m2, mut.position))
+		return T;
+	// no m2 mutation is present, so unique down
+	return MUT[mut.position];
+}
+
+
 1 first(){//draw in single subpopulation
 	defineGlobal("Z3j", rnorm(J)); // define Z1 and Z2 current generation
 	
@@ -54,12 +68,12 @@ reproduction() {
 	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt-2
 	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt-1
 	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
-	defineGlobal("N", asInteger(K0+(K0*el)+(K0*el*es)));
+	defineGlobal("N", asInteger(K0+round(K0*el)+round(K0*el*es)));
 	defineGlobal("colours", c(0,"pink", "yellow", "blue", "black")); // define age colours
 	
 	sim.addSubpop("p1", N);
 	
-	ages=c(repEach(1, K0), repEach(2, asInteger(K0*el)), repEach(3,asInteger(K0*el*es)));
+	ages=c(repEach(1, K0), repEach(2, asInteger(round(K0*el))), repEach(3,asInteger(round(K0*el*es))));
 	
 	rAges=sample(ages, N);
 	
@@ -71,18 +85,25 @@ reproduction() {
 	}
 	header="Time,mut_id,mut_pos,af";
 	writeFile(paste0(outpath, "af_",as,"_",bs,".txt"), header,append=F);
+	
+	// create mutation objects for back mutation
+	target = p1.genomes[0];
+	target.addNewDrawnMutation(m2, 0:(J-1));
+	defineConstant("MUT", target.mutations);
+	// then remove them; start with "A1" for all individuals
+	target.removeMutations();
 }
 
 // fitness effect
 fitnessEffect() {
-	gm=individual.genomes.mutations.position;
+	gm=individual.genomes.mutationsOfType(m2).position;
 	if (length(gm)>0){
-		gm1=individual.genome1.mutations.position;
-		gm2=individual.genome2.mutations.position;
+		gm1=individual.genome1.mutationsOfType(m2).position;
+		gm2=individual.genome2.mutationsOfType(m2).position;
 		if ((length(gm1)>0&length(gm2)==0)|(length(gm2)>0&length(gm1)==0)){
 			Sjt=1+Z3j[gm]*bs+(as*Z[0]);
 			wit=product(Sjt);
-			return wit;
+			return 1+wit;
 		
 		}else{
 			Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
@@ -90,7 +111,7 @@ fitnessEffect() {
 			
 			Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
 			wit2=product(Sjt2);
-			return wit1+wit2	;}
+			return 1+wit1+wit2	;}
 	}else{
 		return 1.0;
 	}
@@ -137,11 +158,31 @@ early() {
 	}
 }
 
-late(){
-	catn(paste("N by age 1=", length(p1.individuals[p1.individuals.age==1]), ", 2=", length(p1.individuals[p1.individuals.age==2]), ", 3=",length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));
+late() {
+	// implement back-mutations from A2 to A1
+	m3muts = sim.mutationsOfType(m3);
+	// do we have any m3 mutations segregating?
+	// if so, we have m2/m3 stacked mutations to remove
+	if (m3muts.length() > 0)
+	{
+		genomes = sim.subpopulations.genomes;
+		counts = genomes.countOfMutationsOfType(m3);
+		hasStacked = genomes[counts > 0];
+		for (genome in hasStacked)
+		{
+			stacked_m3 = genome.mutationsOfType(m3);
+			stackPositions = stacked_m3.position;
+			all_m2 = genome.mutationsOfType(m2);
+			s = (match(all_m2.position, stackPositions) >= 0);
+			stacked_m2 = all_m2[s];
+			genome.removeMutations(c(stacked_m3, stacked_m2));
+		}
+	}
+	
+	if (exists("slimgui")) {catn(paste("N by age 1=", length(p1.individuals[p1.individuals.age==1]), ", 2=", length(p1.individuals[p1.individuals.age==2]), ", 3=",length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));}
 }
 
 
 // output all fixed mutations at end
-2000 late() { sim.outputFixedMutations();
+20000 late() { 
 }
