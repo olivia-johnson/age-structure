@@ -5,9 +5,9 @@ initialize() {
 	
 	defineConstant("K0", 5000);	// initial carrying capacity
 	
-	defineConstant("el", 0.7);	// probablility to advabce from larvae to subadult
+	defineConstant("el", 0.7);	// probablility to advance from larvae to subadult
 	
-	defineConstant("es", 0.7);	// probablility to advabce from subadult to adult
+	defineConstant("es", 0.7);	// probablility to advance from subadult to adult
 	
 	defineConstant("J",8); // number of linked loci
 	
@@ -20,10 +20,10 @@ initialize() {
 	defineConstant("bl", 0.1);
 	
 	if (!exists("as"))
-	{defineConstant("as", 0.1);}
+	{defineConstant("as", 0.25);}
 	
 	if (!exists("bs"))
-	{defineConstant("bs", 0.2);}
+	{defineConstant("bs", 0.05);}
 	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0));
 	
@@ -108,6 +108,16 @@ fitnessEffect() {
 				return 1+wit;
 			
 			}else{
+				//				vec=c(rep(1.0, J));
+				//				vec[gm1]=((vec[gm1]+Z3j[gm1])*bs)+(as*Z[0]);
+				//				vec[gm2]=((vec[gm2]+Z3j[gm2])*bs)+(as*Z[0]);
+				//				vec[unique(gm)]=1+vec[unique(gm)];
+				//				Sjt=vec[vec!=1.0];
+				//
+				//				
+				//				wit=product(Sjt);
+				
+				
 				Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
 				
 				Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
@@ -127,11 +137,7 @@ fitnessEffect() {
 	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt
 	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
 	
-	if (size(sim.mutations)>0){
-		for (i in 1:size(sim.mutations)-1){
-			tab_line = paste(c(sim.cycle,sim.mutations[i].id,sim.mutations[i].position,sim.mutationFrequencies(p1)[i]), sep = ",");
-			writeFile(paste0(outpath, "af_",as,"_",bs,".txt"), tab_line, append = T);
-		} }
+	
 	
 	
 	for (i in c(1,2,3))
@@ -184,6 +190,12 @@ late() {
 	}
 	
 	if (exists("slimgui")) {catn(paste("N by age 1=", length(p1.individuals[p1.individuals.age==1]), ", 2=", length(p1.individuals[p1.individuals.age==2]), ", 3=",length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));}
+	
+	if (size(sim.mutations)>0){
+		for (i in 1:size(sim.mutations)-1){
+			tab_line = paste(c(sim.cycle,sim.mutations[i].id,sim.mutations[i].position,sim.mutationFrequencies(p1)[i]), sep = ",");
+			writeFile(paste0(outpath, "af_",as,"_",bs,".txt"), tab_line, append = T);
+		} }
 }
 
 
