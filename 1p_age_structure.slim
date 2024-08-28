@@ -126,13 +126,13 @@ fitnessEffect() {
 				
 				Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
 				
-				wit=product(Sjt1)*product(Sjt2); // For diplod case Wit is the sum of the product of fitness for each haplotype 
+				wit=product(Sjt1)+product(Sjt2); // For diplod case Wit is the sum of the product of fitness for each haplotype 
 				return wit;} // return the fitness as 1 + Wit
 		}else{
-			return 0.501; // if indidividual has no A2 mutations fitness is 1
+			return 0.51; // if indidividual has no A2 mutations fitness is 1
 		}
 	} else{
-		return 0.501;} // if indidvidual in in larva stage (age=1) then fitness is 1
+		return 0.51;} // if indidvidual in in larva stage (age=1) then fitness is 1
 
 }
 
