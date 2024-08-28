@@ -5,15 +5,15 @@ initialize() {
 	
 	defineConstant("K0", 5000);	// initial carrying capacity
 	
-	defineConstant("el", 0.7);	// probablility to advance from larvae to subadult
+	defineConstant("el", 0.7);	// probablility to advance from larva to subadult
 	
 	defineConstant("es", 0.7);	// probablility to advance from subadult to adult
 	
-	defineConstant("J",8); // number of linked loci
+	defineConstant("J",8); // number of loci
 	
 	defineConstant("u", 5e-5); // mutation rate
 	
-	defineConstant("c", 0.02); // recombination probability among adults and subadults
+	defineConstant("c", 0.02); // recombination prate
 	
 	defineConstant("al", 0.25);
 	
@@ -25,7 +25,7 @@ initialize() {
 	if (!exists("bs"))
 	{defineConstant("bs", 0.05);}
 	
-	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0));
+	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
 	initializeMutationType("m2", 0.5, "f", 0.0); // A2 mutation
 	m2.convertToSubstitution = F;
@@ -41,7 +41,7 @@ initialize() {
 	initializeRecombinationRate(c);
 }
 
-// each individual reproduces itself once
+// individuals reproduce with others of the same age and only in older than 1 (larva age)
 reproduction() {
 	
 	if (individual.age > 1 & individual.age < 4){
@@ -62,30 +62,35 @@ mutation(m3) {
 }
 
 
-1 first(){//draw in single subpopulation
-	defineGlobal("Z3j", rnorm(J)); // define Z1 and Z2 current generation
-	
+1 first(){// draw parmeters
+	defineGlobal("Z3j", rnorm(J)); // define Z3j for loci
 	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
-	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt-2
-	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt-1
-	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
-	defineGlobal("N", asInteger(K0+round(K0*el)+round(K0*el*es)));
+	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-2 using K0
+	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-1 using K0
+	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt using K0
+	defineGlobal("N", asInteger(K0+round(K0*el)+round(K0*el*es))); // combine Kt, Kt-1 and Kt-2 to get total number of idndividuals in intial population
 	defineGlobal("colours", c(0,"pink", "yellow", "blue", "black")); // define age colours
 	
-	sim.addSubpop("p1", N);
+	sim.addSubpop("p1", N); // create population
 	
-	ages=c(repEach(1, K0), repEach(2, asInteger(round(K0*el))), repEach(3,asInteger(round(K0*el*es))));
+	ages=c(repEach(1, K0), repEach(2, asInteger(round(K0*el))), repEach(3,asInteger(round(K0*el*es)))); //create a vector of ages based on abouve values
 	
-	rAges=sample(ages, N);
+	rAges=sample(ages, N); // randomly sample all individuals so ages are random
 	
-	p1.individuals.age=rAges;
+	p1.individuals.age=rAges; // assign ages
 	
-	for (i in c(1,2,3))
+	for (i in c(1,2,3)) // add colour to individuals so ages can be visualised in gui
 	{
 		p1.individuals[p1.individuals.age==i].color=colours[i];
 	}
+	
+	//create file to record allele frequencies
 	header="Time,mut_id,mut_pos,af";
 	writeFile(paste0(outpath, "af_",as,"_",bs,".txt"), header,append=F);
+	
+	//create file to record population size and age sizes
+	pheader="Time,N,larva,subadult, adult";
+	writeFile(paste0(outpath, "pop_",as,"_",bs,".txt"), pheader,append=F);
 	
 	// create mutation objects for back mutation
 	target = p1.genomes[0];
@@ -95,26 +100,25 @@ mutation(m3) {
 	target.removeMutations();
 }
 
-// fitness effect
+// fitness effect to incorporate genotype fitness
 fitnessEffect() {
-	if (individual.age>1){
-		gm=individual.genomes.mutationsOfType(m2).position;
+	if (individual.age>1){ // if individual in subadult or adult
+		gm=individual.genomes.mutationsOfType(m2).position; // determine if genomes contain any A2 mutations
 		if (length(gm)>0){
+			// if A2 mutations present, check mutations on each haplotype
 			gm1=individual.genome1.mutationsOfType(m2).position;
 			gm2=individual.genome2.mutationsOfType(m2).position;
-			if ((length(gm1)>0&length(gm2)==0)|(length(gm2)>0&length(gm1)==0)){
-				Sjt=1+Z3j[gm]*bs+(as*Z[0]);
-				wit=product(Sjt);
-				return 1+wit;
+			if ((length(gm1)>0&length(gm2)==0)|(length(gm2)>0&length(gm1)==0)){ //if there are only mutations on one haplotype
+				Sjt=1+Z3j[gm]*bs+(as*Z[0]); // calculate fitness of each loci as 1 + (Z3j*bs + as*Z1)
+				wit=product(Sjt); // Wit is the genotype fitness, i.e. the product of loci fitness
+				return wit; // return the fitness as 1 + Wit
 			
-			}else{
-				//				vec=c(rep(1.0, J));
-				//				vec[gm1]=((vec[gm1]+Z3j[gm1])*bs)+(as*Z[0]);
-				//				vec[gm2]=((vec[gm2]+Z3j[gm2])*bs)+(as*Z[0]);
-				//				vec[unique(gm)]=1+vec[unique(gm)];
-				//				Sjt=vec[vec!=1.0];
-				//
-				//				
+			}else{ // if both haplotypes contain A2 mutations calculte fitness of each locus for each haplotype
+				//				vec=c(rep(0.0, J));
+				//				vec[gm1]=vec[gm1]+Z3j[gm1];
+				//				vec[gm2]=vec[gm2]+Z3j[gm2];
+				//				Sjt=vec[vec!=0.0];
+				//				Sjt=1+(Sjt*bs)+(as*Z[0]);
 				//				wit=product(Sjt);
 				
 				
@@ -122,25 +126,24 @@ fitnessEffect() {
 				
 				Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
 				
-				wit=product(Sjt1)+product(Sjt2);
-				return 1+wit;}
+				wit=product(Sjt1)*product(Sjt2); // For diplod case Wit is the sum of the product of fitness for each haplotype 
+				return wit;} // return the fitness as 1 + Wit
 		}else{
-			return 1.0;
+			return 0.51; // if indidividual has no A2 mutations fitness is 1
 		}
 	} else{
-		return 1.0;}
+		return 0.51;} // if indidvidual in in larva stage (age=1) then fitness is 1
+
 }
 
 2: early() {
 	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
-	defineGlobal("Kt2", asInteger(el*es*Kt1)); // define Kt
-	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt
+	defineGlobal("Z3j", rnorm(J)); // define Z3j for current generation
+	defineGlobal("Kt2", asInteger(el*es*Kt1)); // define Kt-2 as Kt-1 from previous generation
+	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt-1 as Kt from previous generation
 	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
 	
-	
-	
-	
-	for (i in c(1,2,3))
+	for (i in c(1,2,3)) // reseat age colours
 	{
 		p1.individuals[p1.individuals.age==i].color=colours[i];
 	
@@ -150,25 +153,7 @@ fitnessEffect() {
 	}
 }
 
-// provide density-dependent selection
 early() {
-	
-	defineGlobal("Z3j", rnorm(J)); // define Z1 and Z2 current generation
-	
-	
-	defineGlobal("K", c(0, Kt, Kt1, Kt2,0));
-	gerries=p1.individuals[p1.individuals.age>3];
-	sim.killIndividuals(gerries);
-	
-	
-	for (i in 1:3)
-	{
-		inds=p1.individuals[p1.individuals.age==i];
-		inds.fitnessScaling = K[i]/length(inds) ;
-	}
-}
-
-late() {
 	// implement back-mutations from A2 to A1
 	m3muts = sim.mutationsOfType(m3);
 	// do we have any m3 mutations segregating?
@@ -189,6 +174,20 @@ late() {
 		}
 	}
 	
+	defineGlobal("K", c(0, Kt, Kt1, Kt2,0)); // make vector of ccarrying capacities
+	gerries=p1.individuals[p1.individuals.age>3]; // identify indidividuals over age 3 (adult)
+	sim.killIndividuals(gerries); // remove then from population
+	
+	for (i in 1:3) // enforce carrying capacities for each age
+	{
+		inds=p1.individuals[p1.individuals.age==i];
+		inds.fitnessScaling = K[i]/length(inds) ;
+	}
+}
+
+late() {
+	
+	
 	if (exists("slimgui")) {catn(paste("N by age 1=", length(p1.individuals[p1.individuals.age==1]), ", 2=", length(p1.individuals[p1.individuals.age==2]), ", 3=",length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));}
 	
 	if (size(sim.mutations)>0){
@@ -196,6 +195,10 @@ late() {
 			tab_line = paste(c(sim.cycle,sim.mutations[i].id,sim.mutations[i].position,sim.mutationFrequencies(p1)[i]), sep = ",");
 			writeFile(paste0(outpath, "af_",as,"_",bs,".txt"), tab_line, append = T);
 		} }
+		
+		ptab_line = paste(c(sim.cycle,p1.individualCount,size(p1.individuals[p1.individuals.age==1]), size(p1.individuals[p1.individuals.age==2]),size(p1.individuals[p1.individuals.age==3])), sep = ",");
+					writeFile(paste0(outpath, "pop_",as,"_",bs,".txt"), ptab_line, append = T);
+
 }
 
 
