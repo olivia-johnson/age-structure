@@ -32,14 +32,27 @@ for (i in pop_files){
 
 pop[, label:=paste("as =", as, "bs =", bs), by=c("as", "bs")]
 
-pop=melt(pop, id.vars=c("Time", "label","N"), measure.vars = c("larva", "subadult","adult"), variable.name = "age", value="ageN")
+library(scales)
+show_col(hue_pal()(3))
 
-pplot=ggplot(pop, aes(x=Time, y=ageN, fill=age))+
+ggplot(pop, aes(x=Time))+
+  geom_line(aes(y=larva-Kt), col="#F8766D", alpha=0.8)+
+  geom_line(aes(y=subadult-`Kt-1`), col="#00BA38", alpha=0.8)+
+  geom_line(aes(y=adult-`Kt-2`), col="#619CFF", alpha=0.8)+
+  facet_wrap(~label, ncol=1) +theme_bw()+
+  labs(y="Difference from K")
+
+
+pop=melt(pop, id.vars=c("Time", "label","N", "as", "bs","Kt", "Kt-1", "Kt-2"), measure.vars = c("larva", "subadult","adult"), variable.name = "age", value="ageN")
+
+
+
+pplot=ggplot(pop[as>0.4], aes(x=Time, y=ageN, fill=age))+
   geom_area() + labs(x="Generations", y="Number of Individuals", fill="Age")+
   theme(legend.position = "none") + facet_wrap(~label, ncol=1) +theme_bw()
 # pplot
 
-plot=ggplot(af, aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
+plot=ggplot(af[as>0.4], aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
   geom_line() + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
   theme(legend.position = "none") + facet_wrap(~label, ncol=1) +theme_bw()
 # plot
@@ -47,5 +60,40 @@ plot=ggplot(af, aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
 afp=(plot|pplot)+ plot_layout(axes = "collect")&theme(legend.position="bottom")
 afp
 
-ggsave("afp_nf0.7.pdf", afp)
+ggsave("afp_comparison.pdf", afp, height=8, width=12)
+
+
+
+
+
+
+pplot=ggplot(pop[as=="fits"], aes(x=Time, y=ageN, fill=age))+
+  geom_area() + labs(x="Generations", y="Number of Individuals", fill="Age")+
+  theme(legend.position = "none") + facet_wrap(~label, ncol=1, scales = "free_y") +theme_bw()
+# pplot
+
+plot=ggplot(af[as=="fits"], aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
+  geom_line() + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
+  theme(legend.position = "none") + facet_wrap(~label, ncol=1, scales = "free_y") +theme_bw()
+# plot
+
+afp=(plot|pplot)+ plot_layout(axes = "collect")&theme(legend.position="bottom")
+afp
+
+ggsave("afp_fitnessScaling.pdf", afp, height=8, width=12)
+
+pplot=ggplot(pop[as<0.5], aes(x=Time, y=ageN, fill=age))+
+  geom_area() + labs(x="Generations", y="Number of Individuals", fill="Age")+
+  theme(legend.position = "none") + facet_wrap(~label, ncol=1) +theme_bw()
+# pplot
+
+plot=ggplot(af[as<0.5], aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
+  geom_line() + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
+  theme(legend.position = "none") + facet_wrap(~label, ncol=1) +theme_bw()
+# plot
+
+afp=(plot|pplot)+ plot_layout(axes = "collect")&theme(legend.position="bottom")
+afp
+
+ggsave("afp_0.5.pdf", afp)
 
