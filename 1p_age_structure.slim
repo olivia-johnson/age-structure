@@ -25,6 +25,9 @@ initialize() {
 	if (!exists("bs"))
 	{defineConstant("bs", 0.05);}
 	
+	if (!exists("filename"))
+	{defineConstant("filename", "fits_test");}
+	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
 	initializeMutationType("m2", 0.5, "f", 0.0); // A2 mutation
@@ -86,11 +89,11 @@ mutation(m3) {
 	
 	//create file to record allele frequencies
 	header="Time,mut_id,mut_pos,af";
-	writeFile(paste0(outpath, "af_fits",as,"_",bs,".txt"), header,append=F);
+	writeFile(paste0(outpath, "af_", filename,".txt"), header,append=F);
 	
 	//create file to record population size and age sizes
-	pheader="Time,N,larva,subadult, adult";
-	writeFile(paste0(outpath, "pop_fits",as,"_",bs,".txt"), pheader,append=F);
+	pheader="Time,N,larva,subadult,adult,Kt,Kt-1,Kt-2";
+	writeFile(paste0(outpath, "pop_", filename,".txt"), pheader,append=F);
 	
 	// create mutation objects for back mutation
 	target = p1.genomes[0];
@@ -100,48 +103,10 @@ mutation(m3) {
 	target.removeMutations();
 }
 
-//// fitness effect to incorporate genotype fitness
-//fitnessEffect() {
-//	if (individual.age>1){ // if individual in subadult or adult
-//		gm=individual.genomes.mutationsOfType(m2).position; // determine if genomes contain any A2 mutations
-//		if (length(gm)>0){
-//			// if A2 mutations present, check mutations on each haplotype
-//			gm1=individual.genome1.mutationsOfType(m2).position;
-//			gm2=individual.genome2.mutationsOfType(m2).position;
-//			if ((length(gm1)>0&length(gm2)==0)|(length(gm2)>0&length(gm1)==0)){ //if there are only mutations on one haplotype
-//				Sjt=1+Z3j[gm]*bs+(as*Z[0]); // calculate fitness of each loci as 1 + (Z3j*bs + as*Z1)
-//				wit=product(Sjt); // Wit is the genotype fitness, i.e. the product of loci fitness
-//				return wit; // return the fitness as 1 + Wit
-//			
-//			}else{ // if both haplotypes contain A2 mutations calculte fitness of each locus for each haplotype
-////							vec=c(rep(0.0, J));
-////							vec[gm1]=vec[gm1]+Z3j[gm1];
-////							vec[gm2]=vec[gm2]+Z3j[gm2];
-////							Sjt=vec[vec!=0.0];
-////							Sjt=1+(Sjt*bs)+(as*Z[0]);
-////							wit=product(Sjt);
-//				
-//				
-//				Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
-//				
-//				Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
-//				
-//				wit=product(Sjt1)+product(Sjt2); // For diplod case Wit is the sum of the product of fitness for each haplotype 
-//				return wit;} // return the fitness as 1 + Wit
-//		}else{
-//			return 1.0; // if individual has no A2 mutations fitness is 1
-//		}
-//	} else{
-//		return 1.0;} // if individual is in larva stage (age=1) then fitness is 1
-//
-//}
-
-
-
 2: early() {
 	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
 	defineGlobal("Z3j", rnorm(J)); // define Z3j for current generation
-	defineGlobal("Kt2", asInteger(el*es*Kt1)); // define Kt-2 as Kt-1 from previous generation
+	defineGlobal("Kt2", asInteger(es*Kt1)); // define Kt-2 as Kt-1 from previous generation
 	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt-1 as Kt from previous generation
 	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
 	
@@ -184,16 +149,31 @@ early() {
 	
 	for (ind in p1.individuals){  // loop through individuals
 		if (ind.age>1){ // if individual is older than 1 (past larva stage)
-			//			gm=ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
-			gm1=ind.genome1.mutationsOfType(m2).position;
-			gm2=ind.genome2.mutationsOfType(m2).position;
 			
-			gm=c(rep(1.0, J));
-			gm[gm1]=gm[gm1]*Z3j[gm1];
-			gm[gm2]=gm[gm2]*Z3j[gm2];
-			Sjt=gm[gm!=1.0];
-			Wit=product(1+((Sjt*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
-			ind.tagF=1+Wit; // tage individuals with their genotype fitness
+			
+	/// genotype fitness considered like a single haploid 
+								gm=ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
+								Wit=product(1+((Z3j[gm]*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
+			
+	/// gentoype fitness considered as two haplotypes with Wit either added or mulitplied
+//						gm1=ind.genome1.mutationsOfType(m2).position;
+//						gm2=ind.genome2.mutationsOfType(m2).position;
+//						Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
+//						
+//						Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
+//						
+//						Wit=product(Sjt1)+product(Sjt2);
+			
+	/// vectored fitness where Z3j scores are mulitples before included in Sjt
+//			gm1=ind.genome1.mutationsOfType(m2).position;
+//			gm2=ind.genome2.mutationsOfType(m2).position;
+//			gm=c(rep(1.0, J));
+//			gm[gm1]=gm[gm1]*Z3j[gm1];
+//			gm[gm2]=gm[gm2]*Z3j[gm2];
+//			Sjt=gm[gm!=1.0];
+//			Wit=product(1+((Sjt*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
+			
+			ind.tagF=Wit; // tage individuals with their genotype fitness
 		} else{
 			ind.tagF=1.0; // if individual is in larva stage return genotype fitness as 1
 		}
@@ -206,21 +186,24 @@ early() {
 		indfit= inds.tagF* (K[i]/length(inds)) ; //determine fitness as the genotype fitness * density dependence relative to age based carrying capacity
 		inds.fitnessScaling=indfit; // apply fitness scailing to individuals
 	}
+
+
+
 }
 
 late() {
 	
 	
-	if (exists("slimgui")) {catn(paste("N by age 1=", length(p1.individuals[p1.individuals.age==1]), ", 2=", length(p1.individuals[p1.individuals.age==2]), ", 3=",length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));}
+	if (exists("slimgui")) {catn(paste("N by age 1=", Kt-length(p1.individuals[p1.individuals.age==1]), ", 2=", Kt1-length(p1.individuals[p1.individuals.age==2]), ", 3=",Kt2-length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));}//, "\n Kt=", Kt, ", Kt-1=", Kt1, ", Kt-2 =", Kt2));}
 	
 	if (size(sim.mutations)>0){
 		for (i in 1:size(sim.mutations)-1){
 			tab_line = paste(c(sim.cycle,sim.mutations[i].id,sim.mutations[i].position,sim.mutationFrequencies(p1)[i]), sep = ",");
-			writeFile(paste0(outpath, "af_fits",as,"_",bs,".txt"), tab_line, append = T);
+			writeFile(paste0(outpath, "af_", filename,".txt"), tab_line, append = T);
 		} }
 	
-	ptab_line = paste(c(sim.cycle,p1.individualCount,size(p1.individuals[p1.individuals.age==1]), size(p1.individuals[p1.individuals.age==2]),size(p1.individuals[p1.individuals.age==3])), sep = ",");
-	writeFile(paste0(outpath, "pop_fits",as,"_",bs,".txt"), ptab_line, append = T);
+	ptab_line = paste(c(sim.cycle,p1.individualCount,size(p1.individuals[p1.individuals.age==1]), size(p1.individuals[p1.individuals.age==2]),size(p1.individuals[p1.individuals.age==3]), Kt, Kt1, Kt2), sep = ",");
+	writeFile(paste0(outpath, "pop_", filename,".txt"), ptab_line, append = T);
 
 }
 
