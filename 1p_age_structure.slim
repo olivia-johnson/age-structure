@@ -49,13 +49,19 @@ reproduction() {
 	
 	if (individual.age > 1 & individual.age < 4){
 		i_age=individual.age;
-	
+		
 		gt=paste0(individual.genomes.mutationCountsInGenomes(sim.mutations));
 		sub=which(ug==gt);
-		n_child=rpois(1,ih[sub]);
-		mate = subpop.sampleIndividuals(1, minAge=i_age, maxAge =i_age);
-		subpop.addCrossed(individual, mate, count=n_child);}
-//		subpop.addCrossed(individual, mate);}
+		if (size(ih[sub])==0){
+			n_child=rpois(1,ih[sub]);
+			}else{
+			n_child=rpois(1,1);}
+		if ((Nl+n_child)<Kt){
+			
+			mate = sample(subpop.individuals[subpop.individuals.age==i_age], 1, weights=subpop.individuals[subpop.individuals.age==i_age].tagF);
+			subpop.addCrossed(individual, mate, count=n_child);
+			defineGlobal("Nl",Nl+n_child);}}
+	//		subpop.addCrossed(individual, mate);	}
 
 }
 
@@ -109,7 +115,9 @@ mutation(m3) {
 }
 
 first(){
-for (ind in p1.individuals){  // loop through individuals
+	
+	defineGlobal("Nl",0);
+	for (ind in p1.individuals){  // loop through individuals
 		if (ind.age>1){ // if individual is older than 1 (past larva stage)
 			
 			
@@ -209,6 +217,12 @@ early() {
 	}
 	
 	defineGlobal("K", c(0, Kt, Kt1, Kt2,0)); // make vector of ccarrying capacities
+	deadlarva=sample(p1.individuals[p1.individuals.age==1], asInteger(round(length(p1.individuals[p1.individuals.age==1])*(1-el))));
+	sim.killIndividuals(deadlarva); // remove them from population
+	
+	deadsubs=sample(p1.individuals[p1.individuals.age==2], asInteger(round(length(p1.individuals[p1.individuals.age==2])*(1-es))));
+	sim.killIndividuals(deadsubs); // remove them from population
+	
 	gerries=p1.individuals[p1.individuals.age>3]; // identify individuals over age 3 (adult)
 	sim.killIndividuals(gerries); // remove them from population
 	
@@ -216,21 +230,47 @@ early() {
 	
 	
 	//age based density dependence and implementation of selection
-	for (i in 1:3) // enforce carrying capacities for each age
-	{
-		inds=p1.individuals[p1.individuals.age==i]; // vector of individuals of given age (larva/subadult/adult)
-		indfit= inds.tagF* (K[i]/length(inds)) ; //determine fitness as the genotype fitness * density dependence relative to age based carrying capacity
-		inds.fitnessScaling=indfit; // apply fitness scailing to individuals
-	}
+	//	for (i in 1:3) // enforce carrying capacities for each age
+	//	{
+	//		inds=p1.individuals[p1.individuals.age==i]; // vector of individuals of given age (larva/subadult/adult)
+	//		indfit= inds.tagF* (K[i]/length(inds)) ; //determine fitness as the genotype fitness * density dependence relative to age based carrying capacity
+	//		inds.fitnessScaling=indfit; // apply fitness scailing to individuals
+	//	}
 
 
 
 }
 
 late() {
+geno=c();
+	fit=c();
+	for (g in 0:(length(p1.individuals)-1)){
+		if (p1.individuals[g].age>1 & p1.individuals[g].age<4){
+			geno=c(geno, paste0(p1.individuals[g].genomes.mutationCountsInGenomes(sim.mutations)));
+			fit=c(fit,p1.individuals[g].tagF);
+		}}
+	
+	defineGlobal("geno",unique(geno));
+	defineGlobal("fit", unique(fit));
+	
+	denom=c();
+	ih=c();
+	for (g in 1:length(unique(geno))-1){
+		genotype=unique(geno)[g];
+		fitness=unique(fit)[g];
+		gf=length(which(geno==genotype));
+		denom=c(denom,gf*fitness);
+		ihg = rpois(1,((length(which(geno==unique(geno)[g]))*unique(fit)[g]*Kt)/sum(denom)))/(length(which(geno==unique(geno)[g])));
+		ih=c(ih, ihg);
+	}
+	
+	defineGlobal("ug",unique(geno));
+	defineGlobal("ih", ih);
+	defineGlobal("denom", denom);
+
 	
 	
-	if (exists("slimgui")) {catn(paste("N by age 1=", Kt-length(p1.individuals[p1.individuals.age==1]), ", 2=", Kt1-length(p1.individuals[p1.individuals.age==2]), ", 3=",Kt2-length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));}//, "\n Kt=", Kt, ", Kt-1=", Kt1, ", Kt-2 =", Kt2));}
+	if (exists("slimgui")) {catn(paste("Kt-N 1=", Kt-length(p1.individuals[p1.individuals.age==1]), ", 2=", Kt1-length(p1.individuals[p1.individuals.age==2]), ", 3=",Kt2-length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));}//, "\n Kt=", Kt, ", Kt-1=", Kt1, ", Kt-2 =", Kt2));}
 	
 	if (size(sim.mutations)>0){
 		for (i in 1:size(sim.mutations)-1){
