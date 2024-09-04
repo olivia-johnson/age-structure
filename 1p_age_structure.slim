@@ -49,8 +49,13 @@ reproduction() {
 	
 	if (individual.age > 1 & individual.age < 4){
 		i_age=individual.age;
+	
+		gt=paste0(individual.genomes.mutationCountsInGenomes(sim.mutations));
+		sub=which(ug==gt);
+		n_child=rpois(1,ih[sub]);
 		mate = subpop.sampleIndividuals(1, minAge=i_age, maxAge =i_age);
-		subpop.addCrossed(individual, mate);}
+		subpop.addCrossed(individual, mate, count=n_child);}
+//		subpop.addCrossed(individual, mate);}
 
 }
 
@@ -103,6 +108,68 @@ mutation(m3) {
 	target.removeMutations();
 }
 
+first(){
+for (ind in p1.individuals){  // loop through individuals
+		if (ind.age>1){ // if individual is older than 1 (past larva stage)
+			
+			
+			/// genotype fitness considered like a single haploid 
+			gm=ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
+			Wit=product(1+((Z3j[gm]*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
+			
+			/// gentoype fitness considered as two haplotypes with Wit either added or mulitplied
+			//						gm1=ind.genome1.mutationsOfType(m2).position;
+			//						gm2=ind.genome2.mutationsOfType(m2).position;
+			//						Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
+			//						
+			//						Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
+			//						
+			//						Wit=product(Sjt1)+product(Sjt2);
+			
+			/// vectored fitness where Z3j scores are mulitples before included in Sjt
+			//			gm1=ind.genome1.mutationsOfType(m2).position;
+			//			gm2=ind.genome2.mutationsOfType(m2).position;
+			//			gm=c(rep(1.0, J));
+			//			gm[gm1]=gm[gm1]*Z3j[gm1];
+			//			gm[gm2]=gm[gm2]*Z3j[gm2];
+			//			Sjt=gm[gm!=1.0];
+			//			Wit=product(1+((Sjt*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
+			
+			ind.tagF=Wit; // tage individuals with their genotype fitness
+		} else{
+			ind.tagF=1.0; // if individual is in larva stage return genotype fitness as 1
+		}
+	
+	}
+	geno=c();
+	fit=c();
+	for (g in 0:(length(p1.individuals)-1)){
+		if (p1.individuals[g].age>1 & p1.individuals[g].age<4){
+			geno=c(geno, paste0(p1.individuals[g].genomes.mutationCountsInGenomes(sim.mutations)));
+			fit=c(fit,p1.individuals[g].tagF);
+		}}
+	
+	defineGlobal("geno",unique(geno));
+	defineGlobal("fit", unique(fit));
+	
+	denom=c();
+	ih=c();
+	for (g in 1:length(unique(geno))-1){
+		genotype=unique(geno)[g];
+		fitness=unique(fit)[g];
+		gf=length(which(geno==genotype));
+		denom=c(denom,gf*fitness);
+		ihg = rpois(1,((length(which(geno==unique(geno)[g]))*unique(fit)[g]*Kt)/sum(denom)))/(length(which(geno==unique(geno)[g])));
+		ih=c(ih, ihg);
+	}
+	
+	defineGlobal("ug",unique(geno));
+	defineGlobal("ih", ih);
+	defineGlobal("denom", denom);
+
+
+}
+
 2: early() {
 	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
 	defineGlobal("Z3j", rnorm(J)); // define Z3j for current generation
@@ -147,38 +214,7 @@ early() {
 	
 	// calculate genotype fitness
 	
-	for (ind in p1.individuals){  // loop through individuals
-		if (ind.age>1){ // if individual is older than 1 (past larva stage)
-			
-			
-	/// genotype fitness considered like a single haploid 
-								gm=ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
-								Wit=product(1+((Z3j[gm]*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
-			
-	/// gentoype fitness considered as two haplotypes with Wit either added or mulitplied
-//						gm1=ind.genome1.mutationsOfType(m2).position;
-//						gm2=ind.genome2.mutationsOfType(m2).position;
-//						Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
-//						
-//						Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
-//						
-//						Wit=product(Sjt1)+product(Sjt2);
-			
-	/// vectored fitness where Z3j scores are mulitples before included in Sjt
-//			gm1=ind.genome1.mutationsOfType(m2).position;
-//			gm2=ind.genome2.mutationsOfType(m2).position;
-//			gm=c(rep(1.0, J));
-//			gm[gm1]=gm[gm1]*Z3j[gm1];
-//			gm[gm2]=gm[gm2]*Z3j[gm2];
-//			Sjt=gm[gm!=1.0];
-//			Wit=product(1+((Sjt*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
-			
-			ind.tagF=Wit; // tage individuals with their genotype fitness
-		} else{
-			ind.tagF=1.0; // if individual is in larva stage return genotype fitness as 1
-		}
 	
-	}
 	//age based density dependence and implementation of selection
 	for (i in 1:3) // enforce carrying capacities for each age
 	{
@@ -204,6 +240,7 @@ late() {
 	
 	ptab_line = paste(c(sim.cycle,p1.individualCount,size(p1.individuals[p1.individuals.age==1]), size(p1.individuals[p1.individuals.age==2]),size(p1.individuals[p1.individuals.age==3]), Kt, Kt1, Kt2), sep = ",");
 	writeFile(paste0(outpath, "pop_", filename,".txt"), ptab_line, append = T);
+
 
 }
 
