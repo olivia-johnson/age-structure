@@ -11,9 +11,9 @@ initialize() {
 	
 	defineConstant("J",8); // number of loci
 	
-	defineConstant("u", 5e-5); // mutation rate
+	defineConstant("u", 5e-5*J); // mutation rate
 	
-	defineConstant("c", 0.02); // recombination prate
+	defineConstant("c", 0.02*(J-1)); // recombination prate
 	
 	defineConstant("al", 0.25);
 	
@@ -26,7 +26,7 @@ initialize() {
 	{defineConstant("bs", 0.05);}
 	
 	if (!exists("filename"))
-	{defineConstant("filename", paste0(as,"_",bs,"_dipprod"));}
+	{defineConstant("filename", paste0(as,"_",bs,"_hapsumJ"));}
 	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -144,17 +144,17 @@ if (size(sim.mutations)>0){
 			
 			
 			/// genotype fitness considered like a single haploid 
-//			gm=ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
-//			Wit=product(1+((Z3j[gm]*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
+			gm=ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
+			Wit=product(1+((Z3j[gm]*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
 			
 			/// gentoype fitness considered as two haplotypes with Wit either added or mulitplied
-									gm1=ind.genome1.mutationsOfType(m2).position;
-									gm2=ind.genome2.mutationsOfType(m2).position;
-									Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
-									
-									Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
-									
-									Wit=product(Sjt1)*product(Sjt2);
+//									gm1=ind.genome1.mutationsOfType(m2).position;
+//									gm2=ind.genome2.mutationsOfType(m2).position;
+//									Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
+//									
+//									Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
+//									
+//									Wit=product(Sjt1)*product(Sjt2);
 			
 
 						if (Wit<0.0){
