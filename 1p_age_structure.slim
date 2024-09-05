@@ -26,7 +26,7 @@ initialize() {
 	{defineConstant("bs", 0.05);}
 	
 	if (!exists("filename"))
-	{defineConstant("filename", "fits_test");}
+	{defineConstant("filename", "nfs_hapsum");}
 	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -46,23 +46,19 @@ initialize() {
 
 // individuals reproduce with others of the same age and only in older than 1 (larva age)
 reproduction() {
-	
-	if (individual.age > 1 & individual.age < 4){
-		i_age=individual.age;
-		
-		gt=paste0(individual.genomes.mutationCountsInGenomes(sim.mutations));
-		sub=which(ug==gt);
-		if (size(ih[sub])==0){
-			n_child=rpois(1,ih[sub]);
-			}else{
-			n_child=rpois(1,1);}
-		if ((Nl+n_child)<Kt){
-			
-			mate = sample(subpop.individuals[subpop.individuals.age==i_age], 1, weights=subpop.individuals[subpop.individuals.age==i_age].tagF);
-			subpop.addCrossed(individual, mate, count=n_child);
-			defineGlobal("Nl",Nl+n_child);}}
-	//		subpop.addCrossed(individual, mate);	}
 
+// parents are chosen proportional to fitness
+subInds = p1.individuals[p1.individuals.age>1 & p1.individuals.age<4];
+Ind2=subInds[subInds.age==2];
+Ind3=subInds[subInds.age==3];
+parents1 = sample(subInds, Kt, replace=T, weights=subInds.tagF);
+subs=sum(parents1.age==2);
+parents2 = c(sample(Ind2, subs, replace=T, weights=Ind2.tagF),sample(Ind3, (Kt-subs), replace=T, weights=Ind3.tagF));
+for (i in seqLen(Kt)){
+p1.addCrossed(parents1[i], parents2[i]);
+self.active = 0;
+
+	}
 }
 
 
@@ -82,14 +78,13 @@ mutation(m3) {
 	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-2 using K0
 	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-1 using K0
 	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt using K0
-	defineGlobal("N", asInteger(K0+round(K0*el)+round(K0*el*es))); // combine Kt, Kt-1 and Kt-2 to get total number of idndividuals in intial population
 	defineGlobal("colours", c(0,"pink", "yellow", "blue", "black")); // define age colours
 	
-	sim.addSubpop("p1", N); // create population
+	sim.addSubpop("p1", (Kt+Kt1+Kt2)); // create population
 	
-	ages=c(repEach(1, K0), repEach(2, asInteger(round(K0*el))), repEach(3,asInteger(round(K0*el*es)))); //create a vector of ages based on abouve values
+	ages=c(repEach(1, Kt), repEach(2, Kt1), repEach(3,Kt2)); //create a vector of ages based on abouve values
 	
-	rAges=sample(ages, N); // randomly sample all individuals so ages are random
+	rAges=sample(ages, (Kt+Kt1+Kt2)); // randomly sample all individuals so ages are random
 	
 	p1.individuals.age=rAges; // assign ages
 	
@@ -115,8 +110,35 @@ mutation(m3) {
 }
 
 first(){
+if (size(sim.mutations)>0){
+		for (i in 1:size(sim.mutations)-1){
+			tab_line = paste(c(sim.cycle-1,sim.mutations[i].id,sim.mutations[i].position,sim.mutationFrequencies(p1)[i]), sep = ",");
+			writeFile(paste0(outpath, "af_", filename,".txt"), tab_line, append = T);
+		} }
 	
+	ptab_line = paste(c(sim.cycle-1,p1.individualCount,sum(p1.individuals.age==1), sum(p1.individuals.age==2),sum(p1.individuals.age==3), Kt, Kt1, Kt2), sep = ",");
+	writeFile(paste0(outpath, "pop_", filename,".txt"), ptab_line, append = T);
+
+	if (exists("slimgui")) {catn(paste("Kt-N 1=", (Kt-sum(p1.individuals.age==1)), ", 2=", Kt1-(sum(p1.individuals.age==2)), ", 3=",(Kt2-sum(p1.individuals.age==3)), ", >4=", sum(p1.individuals.age>3)));}//, "\n Kt=", Kt, ", Kt-1=", Kt1, ", Kt-2 =", Kt2));}
+	
+	
+	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
+	defineGlobal("Z3j", rnorm(J)); // define Z3j for current generation
+	defineGlobal("Kt2", asInteger(es*Kt1)); // define Kt-2 as Kt-1 from previous generation
+	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt-1 as Kt from previous generation
+	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
+	defineGlobal("Ls", (length(p1.individuals.age > 1 & p1.individuals.age < 4)/Kt));
 	defineGlobal("Nl",0);
+	
+//	deadlarva=sample(p1.individuals[p1.individuals.age==2], asInteger(round(length(p1.individuals[p1.individuals.age==2])*(1-el))));
+//	sim.killIndividuals(deadlarva); // remove them from population
+//	
+//	deadsubs=sample(p1.individuals[p1.individuals.age==3], asInteger(round(length(p1.individuals[p1.individuals.age==3])*(1-es))));
+//	sim.killIndividuals(deadsubs); // remove them from population
+//	
+//	gerries=p1.individuals[p1.individuals.age>3]; // identify individuals over age 3 (adult)
+//	sim.killIndividuals(gerries); // remove them from population
+	
 	for (ind in p1.individuals){  // loop through individuals
 		if (ind.age>1){ // if individual is older than 1 (past larva stage)
 			
@@ -149,41 +171,37 @@ first(){
 		}
 	
 	}
-	geno=c();
-	fit=c();
-	for (g in 0:(length(p1.individuals)-1)){
-		if (p1.individuals[g].age>1 & p1.individuals[g].age<4){
-			geno=c(geno, paste0(p1.individuals[g].genomes.mutationCountsInGenomes(sim.mutations)));
-			fit=c(fit,p1.individuals[g].tagF);
-		}}
-	
-	defineGlobal("geno",unique(geno));
-	defineGlobal("fit", unique(fit));
-	
-	denom=c();
-	ih=c();
-	for (g in 1:length(unique(geno))-1){
-		genotype=unique(geno)[g];
-		fitness=unique(fit)[g];
-		gf=length(which(geno==genotype));
-		denom=c(denom,gf*fitness);
-		ihg = rpois(1,((length(which(geno==unique(geno)[g]))*unique(fit)[g]*Kt)/sum(denom)))/(length(which(geno==unique(geno)[g])));
-		ih=c(ih, ihg);
-	}
-	
-	defineGlobal("ug",unique(geno));
-	defineGlobal("ih", ih);
-	defineGlobal("denom", denom);
+//	geno=c();
+//	fit=c();
+//	for (g in 0:(length(p1.individuals)-1)){
+//		if (p1.individuals[g].age>1 & p1.individuals[g].age<4){
+//			geno=c(geno, paste0(p1.individuals[g].genomes.mutationCountsInGenomes(sim.mutations)));
+//			fit=c(fit,p1.individuals[g].tagF);
+//		}}
+//	
+//	defineGlobal("geno",unique(geno));
+//	defineGlobal("fit", unique(fit));
+//	
+//	denom=c();
+//	ih=c();
+//	for (g in 1:length(unique(geno))-1){
+//		genotype=unique(geno)[g];
+//		fitness=unique(fit)[g];
+//		gf=length(which(geno==genotype));
+//		denom=c(denom,gf*fitness);
+//		ihg = rpois(1,((length(which(geno==unique(geno)[g]))*unique(fit)[g]*Kt)/sum(denom)))/(length(which(geno==unique(geno)[g])));
+//		ih=c(ih, ihg);
+//	}
+//	
+//	defineGlobal("ug",unique(geno));
+//	defineGlobal("ih", ih);
+//	defineGlobal("denom", denom);
 
 
 }
 
 2: early() {
-	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
-	defineGlobal("Z3j", rnorm(J)); // define Z3j for current generation
-	defineGlobal("Kt2", asInteger(es*Kt1)); // define Kt-2 as Kt-1 from previous generation
-	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt-1 as Kt from previous generation
-	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
+	
 	
 	for (i in c(1,2,3)) // reseat age colours
 	{
@@ -196,6 +214,8 @@ first(){
 }
 
 early() {
+
+	
 	// implement back-mutations from A2 to A1
 	m3muts = sim.mutationsOfType(m3);
 	// do we have any m3 mutations segregating?
@@ -216,15 +236,8 @@ early() {
 		}
 	}
 	
-	defineGlobal("K", c(0, Kt, Kt1, Kt2,0)); // make vector of ccarrying capacities
-	deadlarva=sample(p1.individuals[p1.individuals.age==1], asInteger(round(length(p1.individuals[p1.individuals.age==1])*(1-el))));
-	sim.killIndividuals(deadlarva); // remove them from population
+//	p1.individuals[p1.individuals.age==1].fitnessScaling = Kt / sum(p1.individuals.age==1);
 	
-	deadsubs=sample(p1.individuals[p1.individuals.age==2], asInteger(round(length(p1.individuals[p1.individuals.age==2])*(1-es))));
-	sim.killIndividuals(deadsubs); // remove them from population
-	
-	gerries=p1.individuals[p1.individuals.age>3]; // identify individuals over age 3 (adult)
-	sim.killIndividuals(gerries); // remove them from population
 	
 	// calculate genotype fitness
 	
@@ -242,44 +255,16 @@ early() {
 }
 
 late() {
-geno=c();
-	fit=c();
-	for (g in 0:(length(p1.individuals)-1)){
-		if (p1.individuals[g].age>1 & p1.individuals[g].age<4){
-			geno=c(geno, paste0(p1.individuals[g].genomes.mutationCountsInGenomes(sim.mutations)));
-			fit=c(fit,p1.individuals[g].tagF);
-		}}
-	
-	defineGlobal("geno",unique(geno));
-	defineGlobal("fit", unique(fit));
-	
-	denom=c();
-	ih=c();
-	for (g in 1:length(unique(geno))-1){
-		genotype=unique(geno)[g];
-		fitness=unique(fit)[g];
-		gf=length(which(geno==genotype));
-		denom=c(denom,gf*fitness);
-		ihg = rpois(1,((length(which(geno==unique(geno)[g]))*unique(fit)[g]*Kt)/sum(denom)))/(length(which(geno==unique(geno)[g])));
-		ih=c(ih, ihg);
-	}
-	
-	defineGlobal("ug",unique(geno));
-	defineGlobal("ih", ih);
-	defineGlobal("denom", denom);
 
+deadlarva=sample(p1.individuals[p1.individuals.age==1], asInteger(round(length(p1.individuals[p1.individuals.age==1])*(1-el))));
+	sim.killIndividuals(deadlarva); // remove them from population
 	
+	deadsubs=sample(p1.individuals[p1.individuals.age==2], asInteger(round(length(p1.individuals[p1.individuals.age==2])*(1-es))));
+	sim.killIndividuals(deadsubs); // remove them from population
 	
-	if (exists("slimgui")) {catn(paste("Kt-N 1=", Kt-length(p1.individuals[p1.individuals.age==1]), ", 2=", Kt1-length(p1.individuals[p1.individuals.age==2]), ", 3=",Kt2-length(p1.individuals[p1.individuals.age==3]), ", >4=", length(p1.individuals[p1.individuals.age>3])));}//, "\n Kt=", Kt, ", Kt-1=", Kt1, ", Kt-2 =", Kt2));}
-	
-	if (size(sim.mutations)>0){
-		for (i in 1:size(sim.mutations)-1){
-			tab_line = paste(c(sim.cycle,sim.mutations[i].id,sim.mutations[i].position,sim.mutationFrequencies(p1)[i]), sep = ",");
-			writeFile(paste0(outpath, "af_", filename,".txt"), tab_line, append = T);
-		} }
-	
-	ptab_line = paste(c(sim.cycle,p1.individualCount,size(p1.individuals[p1.individuals.age==1]), size(p1.individuals[p1.individuals.age==2]),size(p1.individuals[p1.individuals.age==3]), Kt, Kt1, Kt2), sep = ",");
-	writeFile(paste0(outpath, "pop_", filename,".txt"), ptab_line, append = T);
+	gerries=p1.individuals[p1.individuals.age>3]; // identify individuals over age 3 (adult)
+	sim.killIndividuals(gerries); // remove them from population
+
 
 
 }
