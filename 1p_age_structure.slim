@@ -26,7 +26,7 @@ initialize() {
 	{defineConstant("bs", 0.05);}
 	
 	if (!exists("filename"))
-	{defineConstant("filename", "nfs_hapsum");}
+	{defineConstant("filename", paste0(as,"_",bs,"_dipprod"));}
 	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -144,26 +144,21 @@ if (size(sim.mutations)>0){
 			
 			
 			/// genotype fitness considered like a single haploid 
-			gm=ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
-			Wit=product(1+((Z3j[gm]*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
+//			gm=ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
+//			Wit=product(1+((Z3j[gm]*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
 			
 			/// gentoype fitness considered as two haplotypes with Wit either added or mulitplied
-			//						gm1=ind.genome1.mutationsOfType(m2).position;
-			//						gm2=ind.genome2.mutationsOfType(m2).position;
-			//						Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
-			//						
-			//						Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
-			//						
-			//						Wit=product(Sjt1)+product(Sjt2);
+									gm1=ind.genome1.mutationsOfType(m2).position;
+									gm2=ind.genome2.mutationsOfType(m2).position;
+									Sjt1=1+Z3j[gm1]*bs+(as*Z[0]);
+									
+									Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
+									
+									Wit=product(Sjt1)*product(Sjt2);
 			
-			/// vectored fitness where Z3j scores are mulitples before included in Sjt
-			//			gm1=ind.genome1.mutationsOfType(m2).position;
-			//			gm2=ind.genome2.mutationsOfType(m2).position;
-			//			gm=c(rep(1.0, J));
-			//			gm[gm1]=gm[gm1]*Z3j[gm1];
-			//			gm[gm2]=gm[gm2]*Z3j[gm2];
-			//			Sjt=gm[gm!=1.0];
-			//			Wit=product(1+((Sjt*bs)+(as*Z[0]))); // product of relative fitness of each locus across genotype
+
+						if (Wit<0.0){
+						Wit=0.0;}
 			
 			ind.tagF=Wit; // tage individuals with their genotype fitness
 		} else{
