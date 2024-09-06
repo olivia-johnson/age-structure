@@ -11,9 +11,9 @@ initialize() {
 	
 	defineConstant("J",8); // number of loci
 	
-	defineConstant("u", 5e-5*J); // mutation rate
+	defineConstant("u", 5e-5); // mutation rate
 	
-	defineConstant("c", 0.02*(J-1)); // recombination prate
+	defineConstant("c", 0.02); // recombination prate
 	
 	defineConstant("al", 0.25);
 	
@@ -26,7 +26,7 @@ initialize() {
 	{defineConstant("bs", 0.05);}
 	
 	if (!exists("filename"))
-	{defineConstant("filename", paste0(as,"_",bs,"_hapsumJ"));}
+	{defineConstant("filename", paste0(as,"_",bs,"_hapsum"));}
 	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -52,10 +52,11 @@ subInds = p1.individuals[p1.individuals.age>1 & p1.individuals.age<4];
 Ind2=subInds[subInds.age==2];
 Ind3=subInds[subInds.age==3];
 parents1 = sample(subInds, Kt, replace=T, weights=subInds.tagF);
+ordp1=parents1[order(parents1.age)];
 subs=sum(parents1.age==2);
 parents2 = c(sample(Ind2, subs, replace=T, weights=Ind2.tagF),sample(Ind3, (Kt-subs), replace=T, weights=Ind3.tagF));
 for (i in seqLen(Kt)){
-p1.addCrossed(parents1[i], parents2[i]);
+p1.addCrossed(ordp1[i], parents2[i]);
 self.active = 0;
 
 	}
@@ -154,7 +155,7 @@ if (size(sim.mutations)>0){
 //									
 //									Sjt2=1+Z3j[gm2]*bs+(as*Z[0]);
 //									
-//									Wit=product(Sjt1)*product(Sjt2);
+//									Wit=product(Sjt1)+product(Sjt2);
 			
 
 						if (Wit<0.0){
@@ -257,7 +258,7 @@ deadlarva=sample(p1.individuals[p1.individuals.age==1], asInteger(round(length(p
 	deadsubs=sample(p1.individuals[p1.individuals.age==2], asInteger(round(length(p1.individuals[p1.individuals.age==2])*(1-es))));
 	sim.killIndividuals(deadsubs); // remove them from population
 	
-	gerries=p1.individuals[p1.individuals.age>3]; // identify individuals over age 3 (adult)
+	gerries=p1.individuals[p1.individuals.age>=3]; // identify individuals over age 3 (adult)
 	sim.killIndividuals(gerries); // remove them from population
 
 
