@@ -9,7 +9,7 @@ initialize() {
 	
 	defineConstant("es", 0.7);	// probablility to advance from subadult to adult
 	
-	defineConstant("J",8); // number of loci
+	defineConstant("J",4); // number of loci
 	
 	defineConstant("u", 5e-5); // mutation rate
 	
@@ -26,7 +26,7 @@ initialize() {
 	{defineConstant("bs", 0.05);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0(as,"_",bs,"_hapsum"));}
+	{defineConstant("filename", paste0(as,"_",bs,"_halfJ"));}
 	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
