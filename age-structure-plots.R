@@ -41,7 +41,7 @@ ggplot(pop, aes(x=Time))+
   geom_line(aes(y=larva-Kt), col="#F8766D", alpha=0.8)+
   geom_line(aes(y=subadult-`Kt-1`), col="#00BA38", alpha=0.8)+
   geom_line(aes(y=adult-`Kt-2`), col="#619CFF", alpha=0.8)+
-  facet_wrap(~label+fit, ncol=1) +theme_bw()+
+  facet_wrap(~label+fit, ncol=4) +theme_bw()+
   labs(y="Difference from K")
 
 
@@ -49,28 +49,27 @@ pop=melt(pop, id.vars=c("Time", "label","N", "as", "bs","Kt", "Kt-1", "Kt-2", "f
 
 
 
-pplot=ggplot(pop[fit=="hapsum"], aes(x=Time, y=ageN, fill=age))+
+pplot=ggplot(pop[fit=="halfJhalfK" ], aes(x=Time, y=ageN, fill=age))+
   geom_area() + labs(x="Generations", y="Number of Individuals", fill="Age")+
   theme(legend.position = "none") + facet_wrap(~label, ncol=1) +theme_bw()
 # pplot
 
-plot=ggplot(af[fit=="hapsum"], aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
+plot=ggplot(af[fit=="halfJhalfK" ], aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
   geom_line(linewidth=0.3) + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
   theme(legend.position = "none") + facet_wrap(~label, ncol=1) +theme_bw()
 # plot
-ggsave("af_hapsum.pdf", plot, height=8, width=12)
-
 
 afp=(plot|pplot)+ plot_layout(axes = "collect")&theme(legend.position="bottom")
 afp
 
-ggsave("afp_hapsum.pdf", afp, height=8, width=12)
+ggsave("afp_halfJhalfK.pdf", afp, height=8, width=12)
 
-plot=ggplot(af, aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
+plot=ggplot(af[fit=="halfJhalfK"], aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
   geom_line(linewidth=0.3) + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
-  theme(legend.position = "none") + facet_wrap(~label+fit, ncol=1) +theme_bw()
-# plot
-ggsave("af_hapsum.pdf", plot, height=8, width=12)
+  theme(legend.position = "none") + facet_wrap(~label, ncol=1) +theme_bw()
+plot
+ggsave("af_halfJhalfK.pdf", plot, height=8, width=9)
+ggsave("af_halfJhalfK.jpg", plot, height=8, width=9)
 
 
 
