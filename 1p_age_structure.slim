@@ -3,7 +3,7 @@ initialize() {
 	
 	initializeSLiMModelType("nonWF"); // Non Wright-Fisher model
 	
-	defineConstant("K0", 5000);	// initial carrying capacity
+	defineConstant("K0", 2500);	// initial carrying capacity
 	
 	defineConstant("el", 0.7);	// probablility to advance from larva to subadult
 	
@@ -26,7 +26,7 @@ initialize() {
 	{defineConstant("bs", 0.05);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0(as,"_",bs,"_halfJ"));}
+	{defineConstant("filename", paste0(as,"_",bs,"_halfJhalfK"));}
 	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
