@@ -31,7 +31,7 @@ initialize() {
 	{defineConstant("bs", 0.05);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0(as,"_",bs,"_SLMJ100"));}
+	{defineConstant("filename", paste0(as,"_",bs,"_SLJ100"));}
 	
 	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -155,12 +155,12 @@ first(){
 				dom = het*0.5; //calculate contribution of heterozygotes
 				if (season>gseason){
 					zs=sum((dom+ns)*s_fx); // calculate z score, combine heterozygote contribution and number of summer homozygotes and times them by the summer effect size 
-					//Wit= (1 + zs)^y; // add z score to diminishing returns fitness function
-					Wit= exp(zs^y); // add z score to multiplicative fitness function
+					Wit= (1 + zs)^y; // add z score to diminishing returns fitness function
+					//Wit= exp(zs^y); // add z score to multiplicative fitness function
 				} else {
 					zw=sum((dom+nw)*w_fx);// calculate z score, combine heterozygote contribution and number of winter homozygotes and times them by the winter effect size 
-					//Wit= (1 + zw)^y; // add z score to diminishing returns fitness function
-					Wit= exp(zw^y); // add z score to multiplicative fitness function
+					Wit= (1 + zw)^y; // add z score to diminishing returns fitness function
+					//Wit= exp(zw^y); // add z score to multiplicative fitness function
 				}
 				
 				ind.tagF=Wit; // tag individuals with their genotype fitness
