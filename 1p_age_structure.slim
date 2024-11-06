@@ -1,28 +1,42 @@
 initialize()
 {
-	defineConstant("outpath", "~/yuseob/");
+	defineConstant("outpath", "~/Documents/yuseob/");
 	initializeSLiMModelType("nonWF"); // Non Wright-Fisher model
-	defineConstant("K0", 5000); // initial carrying capacity
-	defineConstant("el", 0.7); // probablility to advance from larva to subadult
-	defineConstant("es", 0.7); // probablility to advance from subadult to adult
-	defineConstant("J", 4); // number of loci
-	defineConstant("u", 5e-5); // mutation rate
-	defineConstant("c", 0.02); // recombination prate
-	defineConstant("al", 0.25);
-	defineConstant("bl", 0.1);
+	if (!exists("K0"))
+	{defineConstant("K0", 5000);} // initial carrying capacity
+		
+	if (!exists("el"))
+	{defineConstant("el", 0.7);} // probablility to advance from larva to subadult
+		
+	if (!exists("es"))
+	{defineConstant("es", 0.7);} // probablility to advance from subadult to adult
+	
+	if (!exists("J"))
+	{defineConstant("J", 100);} // number of loci
+	
+	if (!exists("u"))
+	{defineConstant("u", 5e-5);} // mutation rate
+	
+	if (!exists("c"))
+	{defineConstant("c", 0.02);} // recombination rate
+	
+	if (!exists("al"))
+	{defineConstant("al", 0.25);}
+	
+	if (!exists("bl"))
+	{defineConstant("bl", 0.1);}
+	
 	if (!exists("as"))
-	{
-		defineConstant("as", 0.25);
-	}
+	{defineConstant("as", 0.25);}
+	
 	if (!exists("bs"))
-	{
-		defineConstant("bs", 0.05);
-	}
+	{defineConstant("bs", 0.05);}
+	
 	if (!exists("filename")) //set filename
-	{
-		defineConstant("filename", paste0(as, "_", bs, "_halfJ"));
-	}
+	{defineConstant("filename", paste0(as, "_", bs, "_fscaled_100J"));}
+	
 	defineConstant("age_transitions", c(1.0, el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
+	
 	initializeMutationType("m2", 0.5, "f", 0.0); // A2 mutation
 	m2.convertToSubstitution = F;
 	m2.color = "cornflowerblue";
@@ -75,10 +89,11 @@ mutation(m3)
 	sim.addSubpop("p1", (Kt + Kt1 + Kt2)); // create initial population
 	ages = c(repEach(1, Kt), repEach(2, Kt1), repEach(3, Kt2)); //create a vector of ages based on above values
 	rAges = sample(ages, (Kt + Kt1 + Kt2)); // randomly sample all individuals so ages are random
-	p1.individuals.age = rAges; // assign ages
+	inds = p1.individuals;
+	inds.age = rAges; // assign ages
 	for (i in c(1, 2, 3)) // add colour to individuals so ages can be visualised in gui
 	{
-		p1.individuals[p1.individuals.age == i].color = colours[i];
+		inds[inds.age == i].color = colours[i];
 	}
 	
 	//create file to record allele frequencies
@@ -96,12 +111,12 @@ mutation(m3)
 	
 	// then remove them; start with "A1" for all individuals
 	target.removeMutations();
-	
-	p1.individuals.tagF=1.0;
+	inds.tagF = 1.0;
 }
 
 2: first()
 {
+	inds = p1.individuals;
 	muts = sim.mutationsOfType(m2);
 	if (size(muts) > 0)
 	{ // record allele frequencies for segregating mutations
@@ -113,32 +128,35 @@ mutation(m3)
 	}
 	
 	// record population and age stage sizes
-	ptab_line = paste(c(sim.cycle - 1, p1.individualCount, sum(p1.individuals.age == 1), sum(p1.individuals.age == 2), sum(p1.individuals.age == 3), Kt, Kt1, Kt2), sep=",");
+	ptab_line = paste(c(sim.cycle - 1, inds.size(), sum(inds.age == 1), sum(inds.age == 2), sum(inds.age == 3), Kt, Kt1, Kt2), sep=",");
 	writeFile(paste0(outpath, "pop_", filename, ".txt"), ptab_line, append=T);
 	if (exists("slimgui"))
 	{
-		catn(paste("Kt-N 1=", (Kt - sum(p1.individuals.age == 1)), ", 2=", Kt1 - (sum(p1.individuals.age == 2)), ", 3=", (Kt2 - sum(p1.individuals.age == 3)), ", >4=", sum(p1.individuals.age > 3)));
+		catn(paste("Kt-N 1=", (Kt - sum(inds.age == 1)), ", 2=", Kt1 - (sum(inds.age == 2)), ", 3=", (Kt2 - sum(inds.age == 3)), ", >4=", sum(inds.age > 3)));
 	} // code to print out difference between age stage sizes and K values in gui
 	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
 	defineGlobal("Z3j", rnorm(J)); // define Z3j for current generation
 	defineGlobal("Kt2", asInteger(es * Kt1)); // define Kt-2 as Kt-1 from previous generation
 	defineGlobal("Kt1", asInteger(el * Kt)); // define Kt-1 as Kt from previous generation
 	defineGlobal("Kt", asInteger(K0 * exp((al * Z[0]) + (bl * Z[1])))); // define Kt
-	
 	for (mut in muts)
 	{
 		mut.setValue("fx", (1 + ((Z3j[mut.position] * bs) + (as * Z[0]))));
 	}
 	
 	/// Calculate and assign fitness		
-	for (ind in p1.individuals)
+	for (ind in inds)
 	{ // loop through individuals
 		if (ind.age > 1)
 		{ // if individual is older than 1 (past larva stage)
-			if ((size(muts) > 0)==T& any(ind.containsMutations(muts))==T){
-				Wit = product(ind.genomes.mutationsOfType(m2).getValue("fx"));}
-			else{ Wit=1.0;}
-			
+			if ((size(muts) > 0) == T & any(ind.containsMutations(muts)) == T)
+			{
+				Wit = product(ind.genomes.mutationsOfType(m2).getValue("fx"));
+			}
+			else
+			{
+				Wit = 1.0;
+			}
 			
 			/// genotype fitness considered like a single haploid 
 			//				gm = ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
@@ -154,22 +172,21 @@ mutation(m3)
 			ind.tagF = 1.0; // if individual is in larva stage return genotype fitness as 1
 		}
 	}
+	inds[inds.age > 1].tagF = inds[inds.age > 1].tagF / max(inds[inds.age > 1].tagF);
 }
-
-
-
 
 2: early()
 {
 	if (exists("slimgui"))
 	{
+		inds = p1.individuals;
 		for (i in c(1, 2, 3)) // reset age colours in gui
 		{
-			p1.individuals[p1.individuals.age == i].color = colours[i];
+			inds[inds.age == i].color = colours[i];
 		}
-		if (length(p1.individuals[p1.individuals.age > 3]) > 0)
+		if (length(inds[inds.age > 3]) > 0)
 		{
-			p1.individuals[p1.individuals.age > 3].color = "black";
+			inds[inds.age > 3].color = "black";
 		}
 	}
 }
@@ -200,14 +217,16 @@ early()
 
 late()
 {
+	inds = p1.individuals;
+	
 	/// sample larva to be killed before next generation
-	deadlarva = sample(p1.individuals[p1.individuals.age == 1], asInteger(round(length(p1.individuals[p1.individuals.age == 1]) * (1 - el))));
+	deadlarva = sample(inds[inds.age == 1], asInteger(round(length(inds[inds.age == 1]) * (1 - el))));
 	sim.killIndividuals(deadlarva); // remove them from population
 	
 	/// sample sub adults to be killed before next generation
-	deadsubs = sample(p1.individuals[p1.individuals.age == 2], asInteger(round(length(p1.individuals[p1.individuals.age == 2]) * (1 - es))));
+	deadsubs = sample(inds[inds.age == 2], asInteger(round(length(p1.individuals[p1.individuals.age == 2]) * (1 - es))));
 	sim.killIndividuals(deadsubs); // remove them from population
-	gerries = p1.individuals[p1.individuals.age >= 3]; // identify adults and any older individuals to be killed for next generation
+	gerries = inds[inds.age >= 3]; // identify adults and any older individuals to be killed for next generation
 	sim.killIndividuals(gerries); // remove them from population
 }
 
