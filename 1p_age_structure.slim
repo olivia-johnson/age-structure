@@ -12,7 +12,7 @@ initialize()
 	{defineConstant("es", 0.7);} // probablility to advance from subadult to adult
 	
 	if (!exists("J"))
-	{defineConstant("J", 100);} // number of loci
+	{defineConstant("J", 300);} // number of loci
 	
 	if (!exists("u"))
 	{defineConstant("u", 5e-5);} // mutation rate
@@ -27,13 +27,13 @@ initialize()
 	{defineConstant("bl", 0.1);}
 	
 	if (!exists("as"))
-	{defineConstant("as", 0.25);}
+	{defineConstant("as", 0.2);}
 	
 	if (!exists("bs"))
-	{defineConstant("bs", 0.05);}
+	{defineConstant("bs", 0.1);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0(as, "_", bs, "_fscaled_100J"));}
+	{defineConstant("filename", paste0(as, "_", bs, "300Jbs01"));}
 	
 	defineConstant("age_transitions", c(1.0, el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -172,7 +172,8 @@ mutation(m3)
 			ind.tagF = 1.0; // if individual is in larva stage return genotype fitness as 1
 		}
 	}
-	inds[inds.age > 1].tagF = inds[inds.age > 1].tagF / max(inds[inds.age > 1].tagF);
+	inds[inds.age > 1].tagF = inds[inds.age > 1].tagF / mean(inds[inds.age > 1].tagF);
+	
 }
 
 2: early()
