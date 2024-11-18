@@ -6,9 +6,9 @@ library(data.table)
 library(ggplot2)
 library(patchwork)
 
-setwd("~/Documents/yuseob/")
+setwd("~/Documents/yuseob/forplots/")
 
-af_files=list.files(path ="~/Documents/yuseob/",pattern ="af_.+txt")
+af_files=list.files(path ="~/Documents/yuseob/forplots/",pattern ="af_.+txt")
 af=NULL
 for (i in af_files){
   as=strsplit(i, "_")[[1]][2]
@@ -25,7 +25,7 @@ af[, prop:=(sum(seg==T)/(max(mut_pos)+1)), by=c("Time", "label", "fit")]
 af[,L:=max(mut_pos), by="fit"]
 af[,l.id:=paste0(fit,mut_id)]
 
-pop_files=list.files(path ="~/Documents/yuseob/",pattern ="pop_.+txt")
+pop_files=list.files(path ="~/Documents/yuseob/forplots/",pattern ="pop_.+txt")
 pop=NULL
 for (i in pop_files){
   as=strsplit(i, "_")[[1]][2]
@@ -35,6 +35,8 @@ for (i in pop_files){
   pdt[, `:=` (as=as, bs=bs, fit=fit_type)]
   pop=rbind(pop,pdt)
 }
+
+setwd("~/Documents/yuseob/")
 
 pop[, label:=paste("as =", as, "bs =", bs), by=c("as", "bs")]
 
@@ -61,9 +63,9 @@ pplot=ggplot(pop, aes(x=Time, y=ageN, fill=age))+
 m100=sample(99,10, replace=FALSE)
 m1000=sample(999,10, replace=FALSE)
 m500=sample(499,10, replace=FALSE)
-m800=sample(799,10, replace=FALSE)
+m300=sample(299,10, replace=FALSE)
 
-muts=c(af[mut_pos<10 & L==9, unique(l.id)],af[mut_pos%in%m100 & L==99, unique(l.id)],af[mut_pos%in%m1000 & L==999, unique(l.id)],af[mut_pos%in%m500 & L==499, unique(l.id)],af[mut_pos%in%m800 & L==799, unique(l.id)])
+muts=c(af[mut_pos<10 & L==9, unique(l.id)],af[mut_pos%in%m100 & L==99, unique(l.id)],af[mut_pos%in%m1000 & L==999, unique(l.id)],af[mut_pos%in%m500 & L==499, unique(l.id)],af[mut_pos%in%m300 & L==299, unique(l.id)])
 
 plot=ggplot(af[l.id%in%muts], aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
   geom_line(linewidth=0.3, alpha=0.5) + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
@@ -78,7 +80,7 @@ plot=ggplot(af[l.id%in%muts], aes(x=Time, y=af, col=factor(mut_pos), group=mut_i
 afp=(propplot|plot|pplot)+ plot_layout(axes = "collect")&theme(legend.position="None")
 afp
 
-ggsave("all_plot.pdf", afp, height=12, width=12)
+ggsave("scaled_SL.pdf", afp, height=10, width=14)
 
 afp=(propplot|plot)+ plot_layout(axes = "collect")&theme(legend.position="None")
 afp
