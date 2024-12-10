@@ -9,10 +9,10 @@ initialize()
 	{defineConstant("el", 0.7);} // probablility to advance from larva to subadult
 		
 	if (!exists("es"))
-	{defineConstant("es", 0.7);} // probablility to advance from subadult to adult
+	{defineConstant("es", 0.0);} // probablility to advance from subadult to adult
 	
 	if (!exists("J"))
-	{defineConstant("J", 100);} // number of loci
+	{defineConstant("J", 10);} // number of loci
 	
 	if (!exists("u"))
 	{defineConstant("u", 5e-5);} // mutation rate
@@ -33,7 +33,7 @@ initialize()
 	{defineConstant("bs", 0.1);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0(as, "_", bs, "_", J, "J", "bs0.1"));}
+	{defineConstant("filename", paste0(as, "_", bs, "_", J, "Jes0"));}
 	
 	defineConstant("age_transitions", c(1.0, el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -225,9 +225,9 @@ late()
 	sim.killIndividuals(deadlarva); // remove them from population
 	
 	/// sample sub adults to be killed before next generation
-	deadsubs = sample(inds[inds.age == 2], asInteger(round(length(p1.individuals[p1.individuals.age == 2]) * (1 - es))));
-	sim.killIndividuals(deadsubs); // remove them from population
-	gerries = inds[inds.age >= 3]; // identify adults and any older individuals to be killed for next generation
+	//deadsubs = sample(inds[inds.age == 2], asInteger(round(length(p1.individuals[p1.individuals.age == 2]) * (1 - es))));
+	//sim.killIndividuals(deadsubs); // remove them from population
+	gerries = inds[inds.age >= 2]; // identify adults and any older individuals to be killed for next generation
 	sim.killIndividuals(gerries); // remove them from population
 }
 

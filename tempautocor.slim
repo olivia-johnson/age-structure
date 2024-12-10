@@ -12,7 +12,7 @@ initialize()
 	{defineConstant("es", 0.7);} // probablility to advance from subadult to adult
 	
 	if (!exists("J"))
-	{defineConstant("J", 100);} // number of loci
+	{defineConstant("J", 10);} // number of loci
 	
 	if (!exists("u"))
 	{defineConstant("u", 5e-5);} // mutation rate
@@ -27,13 +27,16 @@ initialize()
 	{defineConstant("bl", 0.1);}
 	
 	if (!exists("as"))
-	{defineConstant("as", 0.2);}
+	{defineConstant("as", 0.25);}
 	
 	if (!exists("bs"))
-	{defineConstant("bs", 0.1);}
+	{defineConstant("bs", 0.0);}
+	
+	if (!exists("g"))
+	{defineConstant("g", 5);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0(as, "_", bs, "_", J, "J", "bs0.1"));}
+	{defineConstant("filename", paste0(as, "_", bs, "_", J, "J"));}
 	
 	defineConstant("age_transitions", c(1.0, el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -134,7 +137,8 @@ mutation(m3)
 	{
 		catn(paste("Kt-N 1=", (Kt - sum(inds.age == 1)), ", 2=", Kt1 - (sum(inds.age == 2)), ", 3=", (Kt2 - sum(inds.age == 3)), ", >4=", sum(inds.age > 3)));
 	} // code to print out difference between age stage sizes and K values in gui
-	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
+	defineGlobal("Z1", sin(((2*(3.14159265359))*t)/g));
+	defineGlobal("Z2", rnorm(1)); // define Z1 and Z2 current generation
 	defineGlobal("Z3j", rnorm(J)); // define Z3j for current generation
 	defineGlobal("Kt2", asInteger(es * Kt1)); // define Kt-2 as Kt-1 from previous generation
 	defineGlobal("Kt1", asInteger(el * Kt)); // define Kt-1 as Kt from previous generation
