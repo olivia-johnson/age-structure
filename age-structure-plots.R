@@ -13,33 +13,43 @@ af=NULL
 for (i in af_files){
   as=strsplit(i, "_")[[1]][2]
   bs=strsplit(i, "_")[[1]][3]
-  fit_type=strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]]
+  J=strsplit(strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]], "J")[[1]][1]
+  fit_type=strsplit(strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]], "J")[[1]][2]
   dt=fread(i)
-  dt[, `:=` (as=as, bs=bs, fit=fit_type)]
+  dt[, `:=` (as=as, bs=bs, fit=fit_type, J=J)]
   af=rbind(af,dt)
 }
 
-af[, label:=paste("as =", as, "bs =", bs), by=c("as", "bs")]
-af[, seg:= ifelse(af>0 & af<1.0, T, F)]
+af[, label:=paste("J = ", J, "as =", as, "bs =", bs), by=c("as", "bs", "J")]
+af[, seg:= ifelse(af>0.0 & af<1.0, T, F)]
+af[, seg5:=ifelse(af>0.05 & af<0.95, T, F)]
+af[, seg3:=ifelse(af>0.03 & af<0.97, T, F)]
+af[, seg1:=ifelse(af>0.01 & af<0.99, T, F)]
 af[, prop:=(sum(seg==T)/(max(mut_pos)+1)), by=c("Time", "label", "fit")]
+af[, prop5:=(sum(seg5==T)/(max(mut_pos)+1)), by=c("Time", "label", "fit")]
+af[, prop3:=(sum(seg3==T)/(max(mut_pos)+1)), by=c("Time", "label", "fit")]
+af[, prop1:=(sum(seg1==T)/(max(mut_pos)+1)), by=c("Time", "label", "fit")]
 af[,L:=max(mut_pos), by="fit"]
-af[,l.id:=paste0(fit,mut_id)]
+af[,l.id:=paste0(J,fit,mut_id)]
+af[as==0 &bs==0, fit:="Neutral"]
 
 pop_files=list.files(path ="~/Documents/yuseob/forplots/",pattern ="pop_.+txt")
 pop=NULL
 for (i in pop_files){
   as=strsplit(i, "_")[[1]][2]
   bs=strsplit(i, "_")[[1]][3]
-  fit_type=strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]]
+  J=strsplit(strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]], "J")[[1]][1]
+  fit_type=strsplit(strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]], "J")[[1]][2]
   pdt=fread(i)
-  pdt[, `:=` (as=as, bs=bs, fit=fit_type)]
+  pdt[, `:=` (as=as, bs=bs, fit=fit_type, J=J)]
   pop=rbind(pop,pdt)
 }
+pop[as==0 &bs==0, fit:=paste0(" Neutral")]
+
 
 setwd("~/Documents/yuseob/")
 
-pop[, label:=paste("as =", as, "bs =", bs), by=c("as", "bs")]
-
+pop[, label:=paste("J = ", J, "as =", as, "bs =", bs), by=c("as", "bs", "J")]
 # library(scales)
 # show_col(hue_pal()(3))
 # 
@@ -51,13 +61,13 @@ pop[, label:=paste("as =", as, "bs =", bs), by=c("as", "bs")]
 #   labs(y="Difference from K")
 
 
-pop=melt(pop, id.vars=c("Time", "label","N", "as", "bs","Kt", "Kt-1", "Kt-2", "fit"), measure.vars = c("larva", "subadult","adult"), variable.name = "age", value="ageN")
+pop=melt(pop, id.vars=c("Time", "label","N", "as", "bs","Kt", "Kt-1", "Kt-2", "fit", "J"), measure.vars = c("larva", "subadult","adult"), variable.name = "age", value="ageN")
 
 
 
 pplot=ggplot(pop, aes(x=Time, y=ageN, fill=age))+
   geom_area() + labs(x="Generations", y="Number of Individuals", fill="Age")+
-  theme_bw() + facet_wrap(~fit, ncol=1) +theme(legend.position = "none")
+  theme_bw() + facet_wrap(~label, ncol=1) +theme(legend.position = "none")
 # pplot
 
 m100=sample(99,10, replace=FALSE)
@@ -65,22 +75,26 @@ m1000=sample(999,10, replace=FALSE)
 m500=sample(499,10, replace=FALSE)
 m300=sample(299,10, replace=FALSE)
 
-muts=c(af[mut_pos<10 & L==9, unique(l.id)],af[mut_pos%in%m100 & L==99, unique(l.id)],af[mut_pos%in%m1000 & L==999, unique(l.id)],af[mut_pos%in%m500 & L==499, unique(l.id)],af[mut_pos%in%m300 & L==299, unique(l.id)])
+muts=c(af[mut_pos<10 & J==10, unique(l.id)],af[mut_pos%in%m100 & J==100, unique(l.id)],af[mut_pos%in%m1000 & J==1000, unique(l.id)],af[mut_pos%in%m500 & J==500, unique(l.id)],af[mut_pos%in%m300 & J==300, unique(l.id)])
 
 plot=ggplot(af[l.id%in%muts], aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
-  geom_line(linewidth=0.3, alpha=0.5) + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
-  theme_bw() + facet_wrap(~fit, ncol=1) +theme(legend.position = "none")
+  geom_line(linewidth=0.3) + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
+  theme_bw() + facet_wrap(~label, ncol=1) +theme(legend.position = "none")
  plot
  
- dd=af[, unique(prop), by=c("Time", "fit", "label")]
- propplot=ggplot(dd, aes(x=Time, y=V1, col=fit))+
-   geom_line(linewidth=0.3, alpha = 0.8) + labs(x="Generations", y="Proportion of segregating alleles")+
-   theme_bw() + facet_wrap(~fit, ncol=1) #+theme(legend.position = "none")
+ dd=unique(af[, .(prop, prop5, prop3, prop1), by=c("Time", "fit", "label")])
+ propplot=ggplot(dd, aes(x=Time))+
+   #geom_line(aes(y=prop5), col="hotpink", linewidth=0.3)+
+   #geom_line(aes(y=prop3), col="lightgreen", linewidth=0.3)+
+   geom_line(aes(y=prop1), col="cornflowerblue", linewidth=0.3, alpha=0.8)+
+   #geom_line(aes( y=prop), linewidth=0.3, alpha = 0.8) + 
+   labs(x="Generations", y="Proportion of segregating alleles (MAF >= 0.01)")+ coord_cartesian(ylim=c(0,1))+
+   theme_bw() + facet_wrap(~label, ncol=1) +theme(legend.position = "right")
  propplot
 afp=(propplot|plot|pplot)+ plot_layout(axes = "collect")&theme(legend.position="None")
 afp
 
-ggsave("scaled_SL.pdf", afp, height=10, width=14)
+ggsave("es0.pdf", afp, height=10, width=14)
 
 afp=(propplot|plot)+ plot_layout(axes = "collect")&theme(legend.position="None")
 afp
