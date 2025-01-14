@@ -27,16 +27,16 @@ initialize()
 	{defineConstant("bl", 0.1);}
 	
 	if (!exists("as"))
-	{defineConstant("as", 0.25);}
+	{defineConstant("as", 0.2);}
 	
 	if (!exists("bs"))
-	{defineConstant("bs", 0.0);}
+	{defineConstant("bs", 0.1);}
 	
-	if (!exists("g"))
-	{defineConstant("g", 5);}
+	if (!exists("lambda"))
+	{defineConstant("lambda", 24.1);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0(as, "_", bs, "_", J, "J"));}
+	{defineConstant("filename", paste0("tempautocor",lambda,"_",as, "_", bs, "_", J, "J"));}
 	
 	defineConstant("age_transitions", c(1.0, el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -84,10 +84,11 @@ mutation(m3)
 1 first()
 { // draw parmeters
 	defineGlobal("Z3j", rnorm(J)); // define Z3j for loci
-	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
-	defineGlobal("Kt2", asInteger(es * el * K0 * exp((al * Z[0]) + (bl * Z[1])))); // define initial Kt-2 using K0
-	defineGlobal("Kt1", asInteger(el * K0 * exp((al * Z[0]) + (bl * Z[1])))); // define initial Kt-1 using K0
-	defineGlobal("Kt", asInteger(K0 * exp((al * Z[0]) + (bl * Z[1])))); // define initial Kt using K0
+	defineGlobal("Z1", sin((2*PI)*(sim.cycle/lambda))); // define Z1  current generation
+	defineGlobal("Z2", rnorm(1)); // define Z2 current generation
+	defineGlobal("Kt2", asInteger(es * el * K0 * exp((al * Z1) + (bl * Z2)))); // define initial Kt-2 using K0
+	defineGlobal("Kt1", asInteger(el * K0 * exp((al * Z1) + (bl * Z2)))); // define initial Kt-1 using K0
+	defineGlobal("Kt", asInteger(K0 * exp((al * Z1) + (bl * Z2)))); // define initial Kt using K0
 	defineGlobal("colours", c(0, "pink", "yellow", "blue", "black")); // define age colours
 	sim.addSubpop("p1", (Kt + Kt1 + Kt2)); // create initial population
 	ages = c(repEach(1, Kt), repEach(2, Kt1), repEach(3, Kt2)); //create a vector of ages based on above values
@@ -137,15 +138,15 @@ mutation(m3)
 	{
 		catn(paste("Kt-N 1=", (Kt - sum(inds.age == 1)), ", 2=", Kt1 - (sum(inds.age == 2)), ", 3=", (Kt2 - sum(inds.age == 3)), ", >4=", sum(inds.age > 3)));
 	} // code to print out difference between age stage sizes and K values in gui
-	defineGlobal("Z1", sin(((2*(3.14159265359))*t)/g));
-	defineGlobal("Z2", rnorm(1)); // define Z1 and Z2 current generation
+	defineGlobal("Z1", sin((2*PI)*(sim.cycle/lambda))); // define Z1  current generation
+	defineGlobal("Z2", rnorm(1)); // define Z2 current generation
 	defineGlobal("Z3j", rnorm(J)); // define Z3j for current generation
 	defineGlobal("Kt2", asInteger(es * Kt1)); // define Kt-2 as Kt-1 from previous generation
 	defineGlobal("Kt1", asInteger(el * Kt)); // define Kt-1 as Kt from previous generation
-	defineGlobal("Kt", asInteger(K0 * exp((al * Z[0]) + (bl * Z[1])))); // define Kt
+	defineGlobal("Kt", asInteger(K0 * exp((al * Z1) + (bl * Z2)))); // define Kt
 	for (mut in muts)
 	{
-		mut.setValue("fx", (1 + ((Z3j[mut.position] * bs) + (as * Z[0]))));
+		mut.setValue("fx", (1 + ((Z3j[mut.position] * bs) + (as * Z1))));
 	}
 	
 	/// Calculate and assign fitness		
@@ -164,7 +165,7 @@ mutation(m3)
 			
 			/// genotype fitness considered like a single haploid 
 			//				gm = ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
-			//				Wit = product(1 + ((Z3j[gm] * bs) + (as * Z[0]))); // product of relative fitness of each locus across genotype
+			//				Wit = product(1 + ((Z3j[gm] * bs) + (as * Z1))); // product of relative fitness of each locus across genotype
 			if (Wit < 0.0)
 			{ // throws error if fitness negative so avoid by setting to 0
 				Wit = 0.0;
