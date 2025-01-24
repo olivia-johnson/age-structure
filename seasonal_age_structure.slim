@@ -3,25 +3,35 @@ initialize() {
 	
 	initializeSLiMModelType("nonWF"); // Non Wright-Fisher model
 	
-	defineConstant("gseason", 5);
+	if (!exists("gseason"))
+	{defineConstant("gseason", 5);}
 	
-	defineConstant("K0", 5000);	// initial carrying capacity
+	if (!exists("K0"))
+	{defineConstant("K0", 5000);}	// initial carrying capacity
 	
-	defineConstant("el", 0.7);	// probablility to advance from larva to subadult
+	if (!exists("el"))
+	{defineConstant("el", 0.7);}	// probablility to advance from larva to subadult
 	
-	defineConstant("es", 0.7);	// probablility to advance from subadult to adult
+	if (!exists("es"))
+	{defineConstant("es", 0.7);}	// probablility to advance from subadult to adult
 	
-	defineConstant("J",100); // number of loci
+	if (!exists("J"))
+	{defineConstant("J",100); }// number of loci
 	
-	defineConstant("u", 5e-5); // mutation rate
+	if (!exists("u"))
+	{defineConstant("u", 5e-5);} // mutation rate
 	
-	defineConstant("c", 0.02); // recombination prate
+	if (!exists("v"))
+	{defineConstant("c", 0.02);} // recombination prate
 	
-	defineConstant("al", 0.25);
+	if (!exists("al"))
+	{defineConstant("al", 0.25);}
 	
-	defineConstant("bl", 0.1);
+	if (!exists("bl"))
+	{defineConstant("bl", 0.1);}
 	
-	defineConstant("y", 1);
+	if (!exists("y"))
+	{defineConstant("y", 1);}
 	
 	
 	if (!exists("as"))
