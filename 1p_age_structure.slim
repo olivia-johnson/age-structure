@@ -33,7 +33,7 @@ initialize()
 	{defineConstant("bs", 0.1);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0(as, "_", bs, "_", J, "J", "bs0.1"));}
+	{defineConstant("filename", paste0("OG_",as, "_", bs, "_", J, "J"));}
 	
 	defineConstant("age_transitions", c(1.0, el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
@@ -98,11 +98,11 @@ mutation(m3)
 	
 	//create file to record allele frequencies
 	header = "Time,mut_id,mut_pos,af";
-	writeFile(paste0(outpath, "af_", filename, ".txt"), header, append=F);
+	writeFile(paste0(outpath, "af", filename, ".txt"), header, append=F);
 	
 	//create file to record population size and age stage sizes
 	pheader = "Time,N,larva,subadult,adult,Kt,Kt-1,Kt-2";
-	writeFile(paste0(outpath, "pop_", filename, ".txt"), pheader, append=F);
+	writeFile(paste0(outpath, "pop", filename, ".txt"), pheader, append=F);
 	
 	// create mutation objects for back mutation
 	target = p1.genomes[0];
@@ -123,13 +123,13 @@ mutation(m3)
 		for (i in 1:size(muts) - 1)
 		{
 			tab_line = paste(c(sim.cycle - 1, muts[i].id, muts[i].position, sim.mutationFrequencies(p1)[i]), sep=",");
-			writeFile(paste0(outpath, "af_", filename, ".txt"), tab_line, append=T);
+			writeFile(paste0(outpath, "af", filename, ".txt"), tab_line, append=T);
 		}
 	}
 	
 	// record population and age stage sizes
 	ptab_line = paste(c(sim.cycle - 1, inds.size(), sum(inds.age == 1), sum(inds.age == 2), sum(inds.age == 3), Kt, Kt1, Kt2), sep=",");
-	writeFile(paste0(outpath, "pop_", filename, ".txt"), ptab_line, append=T);
+	writeFile(paste0(outpath, "pop", filename, ".txt"), ptab_line, append=T);
 	if (exists("slimgui"))
 	{
 		catn(paste("Kt-N 1=", (Kt - sum(inds.age == 1)), ", 2=", Kt1 - (sum(inds.age == 2)), ", 3=", (Kt2 - sum(inds.age == 3)), ", >4=", sum(inds.age > 3)));
