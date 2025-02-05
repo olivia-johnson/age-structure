@@ -1,0 +1,242 @@
+initialize()
+{
+	if (!exists("outpath"))
+	{defineConstant("outpath", "~/Documents/yuseob/");}
+	
+	initializeSLiMModelType("nonWF"); // Non Wright-Fisher model
+	
+	if (!exists("K0"))
+	{defineConstant("K0", 5000);} // initial carrying capacity
+	
+	if (!exists("es"))
+	{defineConstant("es", 0.5);} // probablility to of survival
+	
+	if (!exists("J"))
+	{defineConstant("J", 1);} // number of loci
+	
+	if (!exists("u"))
+	{defineConstant("u", 5e-5);} // mutation rate
+	
+	if (!exists("c"))
+	{defineConstant("c", 0.02);} // recombination rate
+	
+	if (!exists("al"))
+	{defineConstant("al", 0.25);}
+	
+	if (!exists("bl"))
+	{defineConstant("bl", 0.1);}
+	
+	if (!exists("as"))
+	{defineConstant("as", 0.2);}
+	
+	if (!exists("bs"))
+	{defineConstant("bs", 0.1);}
+	
+	if (!exists("lambda"))
+	{defineConstant("lambda", 24.1);}
+	
+	if (!exists("agecutoff"))
+	{defineConstant("agecutoff", 5);}
+	
+	defineConstant("age_transitions", c(es, es^2, es^3, es^4, es^5, es^6, es^7, es^8, es^9, es^10, es^11, es^12, es^13, es^14, es^15 )); //probability of surviving from one stage to the next
+	
+	
+	if (!exists("filename")) //set filename
+	{defineConstant("filename", paste0("JAcosineage", agecutoff,"lambda",lambda,"es",es, "_",as, "_", bs, "_", J, "J"));}
+	
+	initializeMutationType("m2", 0.5, "f", 0.0); // A2 mutation
+	m2.convertToSubstitution = F;
+	m2.color = "cornflowerblue";
+	initializeMutationType("m3", 0.5, "f", 0.0); // Used for new mutations to enable backmutation
+	m3.convertToSubstitution = F;
+	m3.color = "red";
+	initializeGenomicElementType("g1", m3, 1.0);
+	initializeGenomicElement(g1, 0, J - 1); //set genotypes to length J
+	initializeMutationRate(u); // set mutation rate
+	initializeRecombinationRate(c); // set recombination rate
+}
+
+// individuals reproduce with others of the same age and only in older than 1 (larva age)
+reproduction()
+{
+	// parents are chosen proportional to fitness
+	subInds = p1.individuals[p1.individuals.age > 1];
+	parents1 = sample(subInds, Kt, replace=T, weights=subInds.tagF); // sample first parents weighted by fitness
+	parents2 = sample(subInds, Kt, replace=T, weights=subInds.tagF); // sample first parents weighted by fitness
+	for (i in seqLen(Kt))
+	{
+		p1.addCrossed(parents1[i], parents2[i]); //cross parental pairs to generate Kt larva
+		self.active = 0;
+	}
+}
+
+mutation(m3)
+{
+	// if we already have an m2 mutation at the site, allow
+	// the new m3 mutation; we will remove the stack below (A2 back to A1)
+	if (genome.containsMarkerMutation(m2, mut.position))
+		return T;
+	
+	// no m2 mutation is present, so unique down
+	return MUT[mut.position];
+}
+
+1 first()
+{ // draw parmeters
+	defineGlobal("Z3j", rnorm(J)); // define Z3j for loci
+	defineGlobal("Z1", sin((2*PI)*(sim.cycle/lambda)));
+	defineGlobal("SZ1", cos((2*PI)*(sim.cycle/lambda))); // define Z1  current generation
+	defineGlobal("Z2", rnorm(1)); // define Z1 and Z2 current generation
+	defineGlobal("Kt", asInteger(K0 * exp((al * Z1) + (bl * Z2)))); // define initial Kt using K0
+	ages = c(repEach(1, Kt), repEach(2, asInteger(Kt*es)),repEach(3, asInteger(Kt*es^2)),repEach(4,  asInteger(Kt*es^3)),repEach(5,  asInteger(Kt*es^4)),repEach(6,  asInteger(Kt*es^5))); //create a vector of ages based on above values
+	defineGlobal("Kt1", sum(ages>1)); // define initial Kt-1 using K0
+	defineGlobal("colours", c(0, "pink", "red", "orange", "yellow","green", "blue","purple", "black")); // define age colours
+	sim.addSubpop("p1", (Kt + Kt1 )); // create initial population
+	
+	rAges = sample(ages, (Kt + Kt1)); // randomly sample all individuals so ages are random
+	inds = p1.individuals;
+	inds.age = rAges; // assign ages
+	for (i in c(1:8)) // add colour to individuals so ages can be visualised in gui
+	{
+		inds[inds.age == i].color = colours[i];
+	}
+	
+	//create file to record allele frequencies
+	header = "Time,mut_id,mut_pos,af, adult_af";
+	writeFile(paste0(outpath, "af", filename, ".txt"), header, append=F);
+	
+	//create file to record population size and age stage sizes
+	pheader = "Time,N,larva,adult,Kt";
+	writeFile(paste0(outpath, "pop", filename, ".txt"), pheader, append=F);
+	
+	// create mutation objects for back mutation
+	target = p1.genomes[0];
+	target.addNewDrawnMutation(m2, 0:(J - 1));
+	defineConstant("MUT", target.mutations);
+	
+	// then remove them; start with "A1" for all individuals
+	target.removeMutations();
+	inds.tagF = 1.0;
+}
+
+2: first()
+{
+	inds = p1.individuals;
+	adults = inds.age>1;
+	muts = sim.mutationsOfType(m2);
+	if (size(muts) > 0)
+	{ // record allele frequencies for segregating mutations
+		for (i in 1:size(muts) - 1)
+		{
+			tab_line = paste(c(sim.cycle - 1, muts[i].id, muts[i].position, sim.mutationFrequencies(p1)[i], inds[adults].genomes.mutationFrequenciesInGenomes(muts[i])), sep=",");
+			writeFile(paste0(outpath, "af", filename, ".txt"), tab_line, append=T);
+		}
+	}
+	
+	// record population and age stage sizes
+	ptab_line = paste(c(sim.cycle - 1, inds.size(), sum(inds.age == 1), sum(inds.age >1), Kt), sep=",");
+	writeFile(paste0(outpath, "pop", filename, ".txt"), ptab_line, append=T);
+	if (exists("slimgui"))
+	{
+		catn(paste("Kt-N 1=", (Kt - sum(inds.age == 1))));
+	} // code to print out difference between age stage sizes and K values in gui
+	defineGlobal("Z1", sin((2*PI)*(sim.cycle/lambda)));
+	defineGlobal("SZ1", cos((2*PI)*(sim.cycle/lambda))); // define Z1  current generation
+	defineGlobal("Z2", rnorm(1)); // define Z1 and Z2 current generation
+	defineGlobal("Z3j", rnorm(J)); // define Z3j for current generation
+	defineGlobal("Kt", asInteger(K0 * exp((al * Z1) + (bl * Z2)))); // define Kt
+	for (mut in muts)
+	{
+		mut.setValue("fx", (1 + ((Z3j[mut.position] * bs) + (as * SZ1))));
+	}
+	
+	/// Calculate and assign fitness		
+	for (ind in inds)
+	{ // loop through individuals
+		if (ind.age > 1)
+		{ // if individual is older than 1 (past larva stage)
+			if ((size(muts) > 0) == T & any(ind.containsMutations(muts)) == T)
+			{
+				Wit = product(ind.genomes.mutationsOfType(m2).getValue("fx"));
+			}
+			else
+			{
+				Wit = 1.0;
+			}
+			
+			/// genotype fitness considered like a single haploid 
+			//				gm = ind.genomes.mutationsOfType(m2).position; // get positions of A2 mutations
+			//				Wit = product(1 + ((Z3j[gm] * bs) + (as * Z[0]))); // product of relative fitness of each locus across genotype
+			if (Wit < 0.0)
+			{ // throws error if fitness negative so avoid by setting to 0
+				Wit = 0.0;
+			}
+			ind.tagF = Wit; // tag individuals with their genotype fitness
+		}
+		else
+		{
+			ind.tagF = 1.0; // if individual is in larva stage return genotype fitness as 1
+		}
+	}
+	inds[inds.age > 1].tagF = inds[inds.age > 1].tagF / mean(inds[inds.age > 1].tagF);
+
+}
+
+2: early()
+{
+	if (exists("slimgui"))
+	{
+		catn(paste("Max age: ", max(p1.individuals.age), ", Mean age: ", mean(p1.individuals.age)));
+		inds = p1.individuals;
+		for (i in c(1:8)) // reset age colours in gui
+		{
+			inds[inds.age == i].color = colours[i];
+		}
+	
+	}
+}
+
+early()
+{
+	// implement back-mutations from A2 to A1
+	m3muts = sim.mutationsOfType(m3);
+	
+	// do we have any m3 mutations segregating?
+	// if so, we have m2/m3 stacked mutations to remove
+	if (m3muts.length() > 0)
+	{
+		genomes = sim.subpopulations.genomes;
+		counts = genomes.countOfMutationsOfType(m3);
+		hasStacked = genomes[counts > 0];
+		for (genome in hasStacked)
+		{
+			stacked_m3 = genome.mutationsOfType(m3);
+			stackPositions = stacked_m3.position;
+			all_m2 = genome.mutationsOfType(m2);
+			s = (match(all_m2.position, stackPositions) >= 0);
+			stacked_m2 = all_m2[s];
+			genome.removeMutations(c(stacked_m3, stacked_m2));
+		}
+	}
+}
+
+late()
+{
+	inds = p1.individuals;
+	if (max(inds.age)>=agecutoff){
+		gerries = inds[inds.age==agecutoff];
+		sim.killIndividuals(gerries);}
+	inds = p1.individuals;
+	for (i in 2:max(inds.age)){
+		deadinds = sample(inds[inds.age == i], asInteger(round(length(inds[inds.age == i]) * (1 - es))));
+		sim.killIndividuals(deadinds); // remove them from population
+	
+	}
+	
+
+}
+
+// output all fixed mutations at end
+20000 late()
+{
+}
