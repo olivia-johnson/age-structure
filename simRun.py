@@ -8,7 +8,7 @@ import sys
 import pandas as pd
 
 sim_type=sys.argv[1] ## define simulation type
-pset=sys.argv[2]
+pset=int(sys.argv[2])
 results_dir=sys.argv[3]
 sim_run=sys.argv[4]
 
