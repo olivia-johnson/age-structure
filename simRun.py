@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-path='/Users/olj5016/age-structure/'
+path='/storage/home/olj5016/work/age-structure/'
 import os
 import sys
 import pandas as pd
