@@ -1,0 +1,228 @@
+initialize() {
+	defineConstant("outpath", "~/Documents/yuseob/");
+	
+	initializeSLiMModelType("nonWF"); // Non Wright-Fisher model
+	
+	if (!exists("gseason"))
+	{defineConstant("gseason", 5);}
+	
+	if (!exists("K0"))
+	{defineConstant("K0", 5000);}	// initial carrying capacity
+	
+	if (!exists("el"))
+	{defineConstant("el", 0.7);}	// probablility to advance from larva to subadult
+	
+	if (!exists("es"))
+	{defineConstant("es", 0.7);}	// probablility to advance from subadult to adult
+	
+	if (!exists("J"))
+	{defineConstant("J",100); }// number of loci
+	
+	if (!exists("u"))
+	{defineConstant("u", 5e-5);} // mutation rate
+	
+	if (!exists("v"))
+	{defineConstant("c", 0.02);} // recombination prate
+	
+	if (!exists("al"))
+	{defineConstant("al", 0.25);}
+	
+	if (!exists("bl"))
+	{defineConstant("bl", 0.1);}
+	
+	if (!exists("y"))
+	{defineConstant("y", 1);}
+	
+	if (!exists("d"))
+	{defineConstant("d", 0.5);}
+	
+	if (!exists("as"))
+	{defineConstant("as", 0.25);}
+	
+	if (!exists("bs"))
+	{defineConstant("bs", 0.00);}
+	
+	if (!exists("filename")) //set filename
+	{defineConstant("filename", paste0("CPSLFS_",d,"_y",y,"_", J, "J"));}
+	
+	initializeMutationType("m2", 0.5, "f", 0.0); // A2 mutation
+	m2.convertToSubstitution = F;
+	m2.color = "cornflowerblue";
+	
+	initializeMutationType("m3", 0.5, "f", 0.0); // Used for new mutations to enable backmutation
+	m3.convertToSubstitution = F;
+	m3.color = "red";
+	initializeGenomicElementType("g1", m3, 1.0);
+	
+	initializeGenomicElement(g1, 0, J-1); //set genotypes to length J
+	initializeMutationRate(u); // set mutation rate
+	initializeRecombinationRate(c); // set recombination rate
+}
+
+// individuals reproduce with others of the same age and only in older than 1 (larva age)
+reproduction() {
+	
+	// parents are chosen proportional to fitness
+	inds = p1.individuals;
+	parents1 = sample(inds, K0, replace=T, weights=inds.tagF); // sample first parents weighted by fitness
+	parents2 = sample(inds, K0, replace=T, weights=inds.tagF); //each pair weighted by fitness with m subadults and Kt-m adults
+	for (i in seqLen(K0)){
+		p1.addCrossed(parents1[i], parents2[i]); //cross parental pairs to generate Kt larva
+		self.active = 0;
+	
+	}
+}
+
+
+mutation(m3) {
+	// if we already have an m2 mutation at the site, allow
+	// the new m3 mutation; we will remove the stack below (A2 back to A1)
+	if (genome.containsMarkerMutation(m2, mut.position))
+		return T;
+	// no m2 mutation is present, so unique down
+	return MUT[mut.position];
+}
+
+
+1 first(){// draw parmeters
+	data = c(1, 0.9, 0.9, 1);
+	mu=c(0,0);
+	sigma=matrix(data, ncol=2);
+	effects=rmvnorm(J, mu, sigma);
+	defineGlobal("s_fx", exp(effects[,0]));
+	defineGlobal("w_fx", exp(effects[,1]));
+	//	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
+	//	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-2 using K0
+	//	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-1 using K0
+	//	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt using K0
+	defineGlobal("colours", c(0,"pink", "yellow", "blue", "black")); // define age colours
+	defineGlobal("bg", integer(J, 0));
+	
+	sim.addSubpop("p1", asInteger(K0)); // create initial population
+	
+	
+	
+	
+	//create file to record allele frequencies
+	header="Time,mut_id,mut_pos,af,old_af";
+	writeFile(paste0(outpath, "af", filename,".txt"), header,append=F);
+	
+	//create file to record population size and age stage sizes
+	pheader="Time,N,young_adult,old_adult";
+	writeFile(paste0(outpath, "pop", filename,".txt"), pheader,append=F);
+	
+	// create mutation objects for back mutation
+	target = p1.genomes[0];
+	target.addNewDrawnMutation(m2, 0:(J-1));
+	defineConstant("MUT", target.mutations);
+	// then remove them; start with "A1" for all individuals
+	target.removeMutations();
+}
+
+first(){
+	inds=p1.individuals;
+	muts=sim.mutations;
+	season=integerMod(sim.cycle,(2*gseason));
+	if (size(muts)>0){ // record allele frequencies for segregating mutations
+		for (i in 1:size(muts)-1){
+			tab_line = paste(c(sim.cycle-1,muts[i].id,muts[i].position,sim.mutationFrequencies(p1)[i],0), sep = ",");
+			writeFile(paste0(outpath, "af", filename,".txt"), tab_line, append = T);
+		} }
+	// record population and age stage sizes
+	ptab_line = paste(c(sim.cycle-1,p1.individualCount,sum(inds.age==1), sum(inds.age>1)), sep = ",");
+	writeFile(paste0(outpath, "pop", filename,".txt"), ptab_line, append = T);
+	
+	//	if (exists("slimgui")) {catn(paste("Kt-N 1=", (Kt-sum(inds.age==1)), ", 2=", Kt1-(sum(inds.age==2)), ", 3=",(Kt2-sum(inds.age==3)), ", >4=", sum(inds.age>3)));} // code to print out difference between age stage sizes and K values in gui
+	
+	
+	//	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
+	
+	//	defineGlobal("Kt2", asInteger(es*Kt1)); // define Kt-2 as Kt-1 from previous generation
+	//	defineGlobal("Kt1", asInteger(el*Kt)); // define Kt-1 as Kt from previous generation
+	//	defineGlobal("Kt", asInteger(K0*exp((al*Z[0])+(bl*Z[1])))); // define Kt
+	
+	
+	/// Calculate and assign fitness	
+	for (ind in inds){  // loop through individuals
+		
+		if(sim.countOfMutationsOfType(m2)>0){
+			genomes=bg;
+			genomes[muts.position]=ind.genomes.mutationCountsInGenomes(mutations=sim.mutationsOfType(m2));
+			ns = asInteger(genomes==2);  //number of winter homozygotesns = asInteger(genomes==2); //number of summer homozygotes
+			het = asInteger(genomes==1);  // number of heterozygotes
+			nw = asInteger(genomes==0);  //number of winter homozygotes
+			dom = het*d; //calculate contribution of heterozygotes
+			if (season>gseason){
+				zs=sum((dom+ns)*s_fx); // calculate z score, combine heterozygote contribution and number of summer homozygotes and times them by the summer effect size 
+				Wit= (1 + zs)^y; // add z score to diminishing returns fitness function
+				//Wit= exp(zs^y); // add z score to multiplicative fitness function
+			} else {
+				zw=sum((dom+nw)*w_fx);// calculate z score, combine heterozygote contribution and number of winter homozygotes and times them by the winter effect size 
+				Wit= (1 + zw)^y; // add z score to diminishing returns fitness function
+				//Wit= exp(zw^y); // add z score to multiplicative fitness function
+			}
+			
+			ind.tagF=Wit; // tag individuals with their genotype fitness
+		} else{
+			ind.tagF=1.0; // if individual is in larva stage return genotype fitness as 1
+		}
+	
+	
+	}
+
+
+}
+
+2: early() {
+	inds=p1.individuals;
+	if (exists("slimgui")) {
+		
+		for (i in c(1,2)) // reset age colours in gui
+		{
+			inds[inds.age==i].color=colours[i];
+		
+		}
+		if (length(inds[inds.age>2])>0){
+			inds[inds.age>3].color="black";
+		}}
+}
+
+early() {
+	// implement back-mutations from A2 to A1
+	m3muts = sim.mutationsOfType(m3);
+	// do we have any m3 mutations segregating?
+	// if so, we have m2/m3 stacked mutations to remove
+	if (m3muts.length() > 0)
+	{
+		genomes = sim.subpopulations.genomes;
+		counts = genomes.countOfMutationsOfType(m3);
+		hasStacked = genomes[counts > 0];
+		for (genome in hasStacked)
+		{
+			stacked_m3 = genome.mutationsOfType(m3);
+			stackPositions = stacked_m3.position;
+			all_m2 = genome.mutationsOfType(m2);
+			s = (match(all_m2.position, stackPositions) >= 0);
+			stacked_m2 = all_m2[s];
+			genome.removeMutations(c(stacked_m3, stacked_m2));
+		}
+	}
+}
+
+late() {
+	inds=p1.individuals;
+	/// sample larva to be killed before next generation
+	//	deadlarva=sample(inds[inds.age==1], asInteger(round(length(inds[inds.age==1])*(1-es))));
+	//	sim.killIndividuals(deadlarva); // remove them from population
+	
+	/// sample sub adults to be killed before next generation
+	
+	deadsubs=inds[inds.age==1];
+	sim.killIndividuals(deadsubs); // remove them from population
+
+}
+
+
+// output all fixed mutations at end
+20000 late() {
+}
