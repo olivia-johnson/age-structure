@@ -5,6 +5,7 @@
 library(data.table)
 library(ggplot2)
 library(patchwork)
+library(dplyr)
 
 setwd("~/Documents/yuseob/forplots/")
 
@@ -12,16 +13,17 @@ af_files=list.files(path ="~/Documents/yuseob/forplots/",pattern ="af.+txt")
 af=NULL
 for (i in af_files){
   as=strsplit(i, "_")[[1]][2]
-  bs=strsplit(i, "_")[[1]][3]
+  bs=strsplit(strsplit(i, "_")[[1]][3], "y")[[1]][2]
   J=strsplit(strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]], "J")[[1]][1]
-  fit_type=strsplit(strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]], "J")[[1]][2]
+  fit_type=strsplit(strsplit(i, "_")[[1]][1], "af")[[1]][2]
   dt=fread(i)
   dt[, `:=` (as=as, bs=bs, fit=fit_type, J=J)]
   af=rbind(af,dt)
 }
-
-af[, label:=paste("J = ", J, "as =", as, "bs =", bs), by=c("as", "bs", "J")]
+options(scipen = 999)
+af[, label:=paste("J = ", J, "d =", as, "c =", as.numeric(bs)), by=c("as", "bs", "J")]
 af[, seg:= ifelse(af>0.0 & af<1.0, T, F)]
+af[, nseg:=sum(seg==T), by=c("Time", "label", "fit")]
 # af[, seg5:=ifelse(af>0.05 & af<0.95, T, F)]
 # af[, seg3:=ifelse(af>0.03 & af<0.97, T, F)]
 af[, seg1:=ifelse(af>0.1 & af<0.9, T, F)]
@@ -35,11 +37,13 @@ af[,L:=max(mut_pos), by="fit"]
 af[,l.id:=paste0(J,fit,mut_id)]
 af[as==0 &bs==0, fit:="Neutral"]
 
+
+
 pop_files=list.files(path ="~/Documents/yuseob/forplots/",pattern ="pop.+txt")
 pop=NULL
 for (i in pop_files){
   as=strsplit(i, "_")[[1]][2]
-  bs=strsplit(i, "_")[[1]][3]
+  bs=strsplit(strsplit(i, "_")[[1]][3], "y")[[1]][1]
   J=strsplit(strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]], "J")[[1]][1]
   fit_type=strsplit(strsplit(strsplit(i, "_")[[1]][4], ".txt")[[1]], "J")[[1]][2]
   pdt=fread(i)
@@ -48,7 +52,7 @@ for (i in pop_files){
 }
 pop[as==0 &bs==0, fit:=paste0(" Neutral")]
 
-pop[, label:=paste("J = ", J, "as =", as, "bs =", bs), by=c("as", "bs", "J")]
+pop[, label:=paste("J = ", J, "d =", as, "y =", bs), by=c("as", "bs", "J")]
 
 
 
@@ -64,7 +68,7 @@ pop[, label:=paste("J = ", J, "as =", as, "bs =", bs), by=c("as", "bs", "J")]
 #   labs(y="Difference from K")
 
 
-pop=melt(pop, id.vars=c("Time", "label","N", "as", "bs","Kt", "Kt-1", "Kt-2", "fit", "J"), measure.vars = c("larva", "subadult","adult"), variable.name = "age", value="ageN")
+pop=melt(pop, id.vars=c("Time", "label","N", "as", "bs", "fit", "J"), measure.vars = c("young_adult", "old_adult"), variable.name = "age", value="ageN")
 
 
 
@@ -82,9 +86,9 @@ m300=sample(299,10, replace=FALSE)
 
 muts=c(af[mut_pos<10 & J==10, unique(l.id)],af[mut_pos%in%m100 & J==100, unique(l.id)],af[mut_pos%in%m1000 & J==1000, unique(l.id)],af[mut_pos%in%m500 & J==500, unique(l.id)],af[mut_pos%in%m300 & J==300, unique(l.id)])
 
-plot=ggplot(af[l.id%in%muts], aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
+plot=ggplot(af, aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
   geom_line(linewidth=0.3) + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
-  theme_bw() + facet_wrap(~label, ncol=1) +theme(legend.position = "none")
+  theme_bw() + facet_wrap(~label, ncol=1) +theme(legend.position = "none") + coord_cartesian(y = c(0,1))
  plot
  
  hplot=ggplot(af, aes(x=Time, y=mean_het))+
@@ -103,10 +107,60 @@ plot=ggplot(af[l.id%in%muts], aes(x=Time, y=af, col=factor(mut_pos), group=mut_i
    labs(x="Generations", y="Proportion of segregating alleles (MAF >= 0.1)")+ coord_cartesian(ylim=c(0,1))+
    theme_bw() + facet_wrap(~label, ncol=1) +theme(legend.position = "right")
  propplot
-afp=(plot|propplot|hplot)+ plot_layout(axes = "collect")&theme(legend.position="None")
-afp
 
-ggsave("ta_l24.1_as0.2_bs0.1.pdf", afp, height=10, width=14)
+ afp=(plot|propplot|hplot)+ plot_layout(axes = "collect")&theme(legend.position="None")
+ afp
+ggsave(paste0(fit_type,"_all.pdf"), afp, height=10, width=14)
+
+dt=unique(melt(af[Time==19999], id.vars = c("Time", "as", "bs", "fit", "J"), measure.vars = c("nseg")))
+dt[, J:=as.numeric(J)]
+linear=ggplot(dt)+
+  geom_line(aes(x=J, y=value, group="fit"))+facet_wrap(as~bs)+
+  theme_bw() + scale_y_log10() +scale_x_log10()
+linear
+ggsave(paste0(fit_type,"_linear.pdf"), linear, height=12, width=12)
+
+dd=af[Time==19999, mean_het, by=c("as", "bs", "fit", "J", "label")]
+data=full_join(dt, dd, by=c("as", "bs", "fit", "J"))
+data[, J:=as.numeric(J)]
+
+hetlin=ggplot(data)+
+  geom_line(aes(x=J, y=mean_het, group="fit"))+facet_wrap(as~bs)+
+  theme_bw() + labs(y="Mean heterozygosity") + scale_x_log10()
+ggsave(paste0(fit_type,"_hetlinear.pdf"), hetlin, height=12, width=12)
+
+
+plot=ggplot(af, aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
+  geom_line(linewidth=0.3) + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
+  theme_bw() + facet_wrap(~label, ncol=1) +theme(legend.position = "none") + coord_cartesian(x=c(17000, 17050), y = c(0,1))
+plot
+ggsave(paste0(fit_type,"_zoom.pdf"), plot, height=10, width=6)
+
+
+
+
+
+
+
+adult_af=ggplot(af, aes(x=Time,  col=factor(mut_pos), group=mut_id))+
+  geom_line(aes(y=af), col="darkgray")+
+  geom_line(aes(y=old_af),linewidth=0.3)+
+   labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
+  theme_bw() + facet_wrap(~label, ncol=1) +theme(legend.position = "none") + coord_cartesian(x=c(5000, 5200), y = c(0,1))
+adult_af
+ggsave("JAnoagecut_adultaf.pdf", afp, height=12, width=12)
+
+afp=(adult_af|propplot|hplot)+ plot_layout(axes = "collect")&theme(legend.position="None")
+afp
+ggsave("JAnoagecut_all.pdf", afp, height=10, width=14)
+
+plot=ggplot(af, aes(x=Time, y=af, col=factor(mut_pos), group=mut_id))+
+  geom_line(linewidth=0.3) + labs(x="Generations", y="Allele Frequency", col="Mutation Position")+
+  theme_bw() + facet_wrap(~label, ncol=1) +theme(legend.position = "none") + coord_cartesian(x=c(17000, 17100), y = c(0,1))
+plot
+ggsave("CPSLFS_zoom.pdf", plot, height=10, width=6)
+
+
 
 afp=(propplot|plot)+ plot_layout(axes = "collect")&theme(legend.position="None")
 afp
