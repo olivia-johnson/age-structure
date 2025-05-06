@@ -16,12 +16,12 @@ initialize() {
 	{defineConstant("es", 0.7);}	// probablility to advance from subadult to adult
 	
 	if (!exists("J"))
-	{defineConstant("J",100); }// number of loci
+	{defineConstant("J",10); }// number of loci
 	
 	if (!exists("u"))
 	{defineConstant("u", 5e-5);} // mutation rate
 	
-	if (!exists("c"))
+	if (!exists("v"))
 	{defineConstant("c", 0.02);} // recombination prate
 	
 	if (!exists("al"))
@@ -43,7 +43,9 @@ initialize() {
 	{defineConstant("bs", 0.00);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0("CPSLFS_",d,"_y",y,"_", J, "J"));}
+	{defineConstant("filename", paste0("YOSLSS_",d,"_y",y,"_", J, "J"));}
+	
+	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
 	initializeMutationType("m2", 0.5, "f", 0.0); // A2 mutation
 	m2.convertToSubstitution = F;
@@ -62,15 +64,15 @@ initialize() {
 // individuals reproduce with others of the same age and only in older than 1 (larva age)
 reproduction() {
 	
-	// parents are chosen proportional to fitness
+	// randomly mating parents
 	inds = p1.individuals;
-	parents1 = sample(inds, K0, replace=T, weights=inds.tagF); // sample first parents weighted by fitness
-	parents2 = sample(inds, K0, replace=T, weights=inds.tagF); //each pair weighted by fitness with m subadults and Kt-m adults
-	for (i in seqLen(K0)){
-		p1.addCrossed(parents1[i], parents2[i]); //cross parental pairs to generate Kt larva
-		self.active = 0;
+	parents1 = p1.sampleIndividuals(K0, replace=T);
+	parents2 = p1.sampleIndividuals(K0, replace=T);
 	
-	}
+	for (i in seqLen(K0))
+		p1.addCrossed(parents1[i], parents2[i]);
+	
+	self.active = 0;
 }
 
 
@@ -91,6 +93,7 @@ mutation(m3) {
 	effects=rmvnorm(J, mu, sigma);
 	defineGlobal("s_fx", exp(effects[,0]));
 	defineGlobal("w_fx", exp(effects[,1]));
+
 	//	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
 	//	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-2 using K0
 	//	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-1 using K0
@@ -98,10 +101,19 @@ mutation(m3) {
 	defineGlobal("colours", c(0,"pink", "yellow", "blue", "black")); // define age colours
 	defineGlobal("bg", integer(J, 0));
 	
-	sim.addSubpop("p1", asInteger(K0)); // create initial population
+	sim.addSubpop("p1", asInteger(K0+(K0*es))); // create initial population
 	
 	
+	ages=c(repEach(1, K0), repEach(2, (p1.individualCount-K0))); //create a vector of ages based on above values
 	
+	rAges=sample(ages, (K0+(p1.individualCount-K0))); // randomly sample all individuals so ages are random
+	
+	p1.individuals.age=rAges; // assign ages
+	
+	for (i in c(1,2)) // add colour to individuals so ages can be visualised in gui
+	{
+		p1.individuals[p1.individuals.age==i].color=colours[i];
+	}
 	
 	//create file to record allele frequencies
 	header="Time,mut_id,mut_pos,af,old_af";
@@ -122,15 +134,6 @@ mutation(m3) {
 first(){
 	inds=p1.individuals;
 	muts=sim.mutations;
-	season=integerMod(sim.cycle,(2*gseason));
-	if (size(muts)>0){ // record allele frequencies for segregating mutations
-		for (i in 1:size(muts)-1){
-			tab_line = paste(c(sim.cycle-1,muts[i].id,muts[i].position,sim.mutationFrequencies(p1)[i],0), sep = ",");
-			writeFile(paste0(outpath, "af", filename,".txt"), tab_line, append = T);
-		} }
-	// record population and age stage sizes
-	ptab_line = paste(c(sim.cycle-1,p1.individualCount,sum(inds.age==1), sum(inds.age>1)), sep = ",");
-	writeFile(paste0(outpath, "pop", filename,".txt"), ptab_line, append = T);
 	
 	//	if (exists("slimgui")) {catn(paste("Kt-N 1=", (Kt-sum(inds.age==1)), ", 2=", Kt1-(sum(inds.age==2)), ", 3=",(Kt2-sum(inds.age==3)), ", >4=", sum(inds.age>3)));} // code to print out difference between age stage sizes and K values in gui
 	
@@ -143,41 +146,10 @@ first(){
 	
 	
 	/// Calculate and assign fitness	
-	for (ind in inds){  // loop through individuals
-		
-		if(sim.countOfMutationsOfType(m2)>0){
-			genomes=bg;
-			genomes[muts.position]=ind.genomes.mutationCountsInGenomes(mutations=sim.mutationsOfType(m2));
-			ns = asInteger(genomes==2);  //number of winter homozygotesns = asInteger(genomes==2); //number of summer homozygotes
-			het = asInteger(genomes==1);  // number of heterozygotes
-			nw = asInteger(genomes==0);  //number of winter homozygotes
-			dom = het*d; //calculate contribution of heterozygotes
-			if (season>gseason){
-				zs=sum((dom+ns)*s_fx); // calculate z score, combine heterozygote contribution and number of summer homozygotes and times them by the summer effect size 
-				Wit= (1 + zs)^y; // add z score to diminishing returns fitness function
-				//Wit= exp(zs^y); // add z score to multiplicative fitness function
-			} else {
-				zw=sum((dom+nw)*w_fx);// calculate z score, combine heterozygote contribution and number of winter homozygotes and times them by the winter effect size 
-				Wit= (1 + zw)^y; // add z score to diminishing returns fitness function
-				//Wit= exp(zw^y); // add z score to multiplicative fitness function
-			}
-			
-			ind.tagF=Wit; // tag individuals with their genotype fitness
-		} else{
-			ind.tagF=1.0; // if individual is in larva stage return genotype fitness as 1
-		}
 	
-	
-	}
-
-
-}
-
-2: early() {
-	inds=p1.individuals;
 	if (exists("slimgui")) {
 		
-		for (i in c(1,2)) // reset age colours in gui
+		for (i in c(1,2,3)) // reset age colours in gui
 		{
 			inds[inds.age==i].color=colours[i];
 		
@@ -185,6 +157,18 @@ first(){
 		if (length(inds[inds.age>2])>0){
 			inds[inds.age>3].color="black";
 		}}
+	
+	
+	season=integerMod(sim.cycle,(2*gseason));
+	if (size(muts)>0){ // record allele frequencies for segregating mutations
+		for (i in 1:size(muts)-1){
+			tab_line = paste(c(sim.cycle-1,muts[i].id,muts[i].position,sim.mutationFrequencies(p1)[i],inds[inds.age>1].genomes.mutationFrequenciesInGenomes(muts[i])), sep = ",");
+			writeFile(paste0(outpath, "af", filename,".txt"), tab_line, append = T);
+		} }
+	// record population and age stage sizes
+	ptab_line = paste(c(sim.cycle-1,p1.individualCount,sum(inds.age==1), sum(inds.age>1)), sep = ",");
+	writeFile(paste0(outpath, "pop", filename,".txt"), ptab_line, append = T);
+
 }
 
 early() {
@@ -209,9 +193,57 @@ early() {
 	}
 }
 
-survival() {
-	// survival is independent of fitness; parents die, offspring live
-	return (individual.age == 0);
+early() {
+	muts=sim.mutationsOfType(m2);
+	season=integerMod(sim.cycle,(2*gseason));
+	
+	inds=p1.individuals;
+	for (ind in inds){  // loop through individuals
+		if(size(muts)>0){
+			genomes=bg;
+			genomes[muts.position]=ind.genomes.mutationCountsInGenomes(mutations=muts);
+			ns = asInteger(genomes==2);  //number of winter homozygotesns = asInteger(genomes==2); //number of summer homozygotes
+			het = asInteger(genomes==1);  // number of heterozygotes
+			nw = asInteger(genomes==0);  //number of winter homozygotes
+			dom = het*d; //calculate contribution of heterozygotes
+			if (season>gseason){
+				zs=sum((dom+ns)*s_fx); // calculate z score, combine heterozygote contribution and number of summer homozygotes and times them by the summer effect size 
+				Wit= (1 + zs)^y; // add z score to diminishing returns fitness function
+				//Wit= exp(zs^y); // add z score to multiplicative fitness function
+			} else {
+				zw=sum((dom+nw)*w_fx);// calculate z score, combine heterozygote contribution and number of winter homozygotes and times them by the winter effect size 
+				Wit= (1 + zw)^y; // add z score to diminishing returns fitness function
+				//Wit= exp(zw^y); // add z score to multiplicative fitness function
+			}
+			
+			ind.tagF=Wit; // tag individuals with their genotype fitness
+		} else{
+			ind.tagF=1.0; // if individual is in larva stage return genotype fitness as 1
+		}
+	
+	}
+	
+	
+	
+	deadsubs=inds[inds.age>1];
+	sim.killIndividuals(deadsubs); // remove them from population
+
+
+
+}
+
+
+
+
+late() {
+	inds=p1.individuals;
+	/// sample larva to be killed before next generation
+	deadlarva=sample(inds[inds.age==1], asInteger(round(length(inds[inds.age==1])*(1-es))), weights=(1-(inds[inds.age==1].tagF/max(inds[inds.age==1].tagF)))+1);
+	sim.killIndividuals(deadlarva); // remove them from population
+	
+	/// sample sub adults to be killed before next generation
+
+
 }
 
 

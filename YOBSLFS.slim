@@ -21,7 +21,7 @@ initialize() {
 	if (!exists("u"))
 	{defineConstant("u", 5e-5);} // mutation rate
 	
-	if (!exists("c"))
+	if (!exists("v"))
 	{defineConstant("c", 0.02);} // recombination prate
 	
 	if (!exists("al"))
@@ -43,7 +43,9 @@ initialize() {
 	{defineConstant("bs", 0.00);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0("CPSLFS_",d,"_y",y,"_", J, "J"));}
+	{defineConstant("filename", paste0("YOBSLFS_",d,"_y",y,"_", J, "J"));}
+	
+	defineConstant("age_transitions", c(1.0,el, es, 0.0, 0.0)); //probability of surviving from one stage to the next
 	
 	initializeMutationType("m2", 0.5, "f", 0.0); // A2 mutation
 	m2.convertToSubstitution = F;
@@ -85,12 +87,7 @@ mutation(m3) {
 
 
 1 first(){// draw parmeters
-	data = c(1, 0.9, 0.9, 1);
-	mu=c(0,0);
-	sigma=matrix(data, ncol=2);
-	effects=rmvnorm(J, mu, sigma);
-	defineGlobal("s_fx", exp(effects[,0]));
-	defineGlobal("w_fx", exp(effects[,1]));
+	
 	//	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
 	//	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-2 using K0
 	//	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-1 using K0
@@ -98,10 +95,18 @@ mutation(m3) {
 	defineGlobal("colours", c(0,"pink", "yellow", "blue", "black")); // define age colours
 	defineGlobal("bg", integer(J, 0));
 	
-	sim.addSubpop("p1", asInteger(K0)); // create initial population
+	sim.addSubpop("p1", asInteger(K0+(K0*es))); // create initial population
 	
+	ages=c(repEach(1, K0), repEach(2, (p1.individualCount-K0))); //create a vector of ages based on above values
 	
+	rAges=sample(ages, (K0+(p1.individualCount-K0))); // randomly sample all individuals so ages are random
 	
+	p1.individuals.age=rAges; // assign ages
+	
+	for (i in c(1,2)) // add colour to individuals so ages can be visualised in gui
+	{
+		p1.individuals[p1.individuals.age==i].color=colours[i];
+	}
 	
 	//create file to record allele frequencies
 	header="Time,mut_id,mut_pos,af,old_af";
@@ -125,7 +130,7 @@ first(){
 	season=integerMod(sim.cycle,(2*gseason));
 	if (size(muts)>0){ // record allele frequencies for segregating mutations
 		for (i in 1:size(muts)-1){
-			tab_line = paste(c(sim.cycle-1,muts[i].id,muts[i].position,sim.mutationFrequencies(p1)[i],0), sep = ",");
+			tab_line = paste(c(sim.cycle-1,muts[i].id,muts[i].position,sim.mutationFrequencies(p1)[i],inds[inds.age>1].genomes.mutationFrequenciesInGenomes(muts[i])), sep = ",");
 			writeFile(paste0(outpath, "af", filename,".txt"), tab_line, append = T);
 		} }
 	// record population and age stage sizes
@@ -144,20 +149,19 @@ first(){
 	
 	/// Calculate and assign fitness	
 	for (ind in inds){  // loop through individuals
-		
 		if(sim.countOfMutationsOfType(m2)>0){
 			genomes=bg;
 			genomes[muts.position]=ind.genomes.mutationCountsInGenomes(mutations=sim.mutationsOfType(m2));
-			ns = asInteger(genomes==2);  //number of winter homozygotesns = asInteger(genomes==2); //number of summer homozygotes
-			het = asInteger(genomes==1);  // number of heterozygotes
-			nw = asInteger(genomes==0);  //number of winter homozygotes
+			ns = sum(genomes==2);  //number of winter homozygotesns = asInteger(genomes==2); //number of summer homozygotes
+			het = sum(genomes==1);  // number of heterozygotes
+			nw = sum(genomes==0);  //number of winter homozygotes
 			dom = het*d; //calculate contribution of heterozygotes
 			if (season>gseason){
-				zs=sum((dom+ns)*s_fx); // calculate z score, combine heterozygote contribution and number of summer homozygotes and times them by the summer effect size 
+				zs=sum((dom+ns)); // calculate z score, combine heterozygote contribution and number of summer homozygotes and times them by the summer effect size 
 				Wit= (1 + zs)^y; // add z score to diminishing returns fitness function
 				//Wit= exp(zs^y); // add z score to multiplicative fitness function
 			} else {
-				zw=sum((dom+nw)*w_fx);// calculate z score, combine heterozygote contribution and number of winter homozygotes and times them by the winter effect size 
+				zw=sum((dom+nw));// calculate z score, combine heterozygote contribution and number of winter homozygotes and times them by the winter effect size 
 				Wit= (1 + zw)^y; // add z score to diminishing returns fitness function
 				//Wit= exp(zw^y); // add z score to multiplicative fitness function
 			}
@@ -166,11 +170,7 @@ first(){
 		} else{
 			ind.tagF=1.0; // if individual is in larva stage return genotype fitness as 1
 		}
-	
-	
 	}
-
-
 }
 
 2: early() {
@@ -209,9 +209,17 @@ early() {
 	}
 }
 
-survival() {
-	// survival is independent of fitness; parents die, offspring live
-	return (individual.age == 0);
+late() {
+	inds=p1.individuals;
+	/// sample larva to be killed before next generation
+	deadlarva=sample(inds[inds.age==1], asInteger(round(length(inds[inds.age==1])*(1-es))));
+	sim.killIndividuals(deadlarva); // remove them from population
+	
+	/// sample sub adults to be killed before next generation
+	
+	deadsubs=inds[inds.age>1];
+	sim.killIndividuals(deadsubs); // remove them from population
+
 }
 
 

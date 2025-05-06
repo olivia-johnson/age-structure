@@ -43,7 +43,7 @@ initialize() {
 	{defineConstant("bs", 0.00);}
 	
 	if (!exists("filename")) //set filename
-	{defineConstant("filename", paste0("CPSLFS_",d,"_y",y,"_", J, "J"));}
+	{defineConstant("filename", paste0("CPBSLFS_",d,"_y",y,"_", J, "J"));}
 	
 	initializeMutationType("m2", 0.5, "f", 0.0); // A2 mutation
 	m2.convertToSubstitution = F;
@@ -85,12 +85,12 @@ mutation(m3) {
 
 
 1 first(){// draw parmeters
-	data = c(1, 0.9, 0.9, 1);
-	mu=c(0,0);
-	sigma=matrix(data, ncol=2);
-	effects=rmvnorm(J, mu, sigma);
-	defineGlobal("s_fx", exp(effects[,0]));
-	defineGlobal("w_fx", exp(effects[,1]));
+//	data = c(1, 0.9, 0.9, 1);
+//	mu=c(0,0);
+//	sigma=matrix(data, ncol=2);
+//	effects=rmvnorm(J, mu, sigma);
+//	defineGlobal("s_fx", exp(effects[,0]));
+//	defineGlobal("w_fx", exp(effects[,1]));
 	//	defineGlobal("Z", rnorm(2)); // define Z1 and Z2 current generation
 	//	defineGlobal("Kt2", asInteger(es*el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-2 using K0
 	//	defineGlobal("Kt1", asInteger(el*K0*exp((al*Z[0])+(bl*Z[1])))); // define initial Kt-1 using K0
@@ -148,16 +148,16 @@ first(){
 		if(sim.countOfMutationsOfType(m2)>0){
 			genomes=bg;
 			genomes[muts.position]=ind.genomes.mutationCountsInGenomes(mutations=sim.mutationsOfType(m2));
-			ns = asInteger(genomes==2);  //number of winter homozygotesns = asInteger(genomes==2); //number of summer homozygotes
-			het = asInteger(genomes==1);  // number of heterozygotes
-			nw = asInteger(genomes==0);  //number of winter homozygotes
+			ns = sum(genomes==2);  //number of winter homozygotesns = asInteger(genomes==2); //number of summer homozygotes
+			het = sum(genomes==1);  // number of heterozygotes
+			nw = sum(genomes==0);  //number of winter homozygotes
 			dom = het*d; //calculate contribution of heterozygotes
 			if (season>gseason){
-				zs=sum((dom+ns)*s_fx); // calculate z score, combine heterozygote contribution and number of summer homozygotes and times them by the summer effect size 
+				zs=sum((dom+ns)); // calculate z score, combine heterozygote contribution and number of summer homozygotes and times them by the summer effect size 
 				Wit= (1 + zs)^y; // add z score to diminishing returns fitness function
 				//Wit= exp(zs^y); // add z score to multiplicative fitness function
 			} else {
-				zw=sum((dom+nw)*w_fx);// calculate z score, combine heterozygote contribution and number of winter homozygotes and times them by the winter effect size 
+				zw=sum((dom+nw));// calculate z score, combine heterozygote contribution and number of winter homozygotes and times them by the winter effect size 
 				Wit= (1 + zw)^y; // add z score to diminishing returns fitness function
 				//Wit= exp(zw^y); // add z score to multiplicative fitness function
 			}
@@ -213,6 +213,7 @@ survival() {
 	// survival is independent of fitness; parents die, offspring live
 	return (individual.age == 0);
 }
+
 
 
 // output all fixed mutations at end
